@@ -17,7 +17,7 @@ const translations = {
     form_address: "Адрес объекта", form_comment: "Технические детали", form_save: "Сохранить проект",
     hist_author: "Ответственный:", hist_empty: "Пространство проектов пусто", detail_title: "Карточка проекта",
     btn_download: "Сохранить", btn_whatsapp: "В WhatsApp", btn_back: "Назад к списку",
-    btn_camera: "Сделать фото", btn_gallery: "Из галереи", btn_done_fullscreen: "Готово",
+    btn_camera: "Сделать фото", btn_gallery: "Из галереи", btn_done_fullscreen: "Готово / Закрыть",
     btn_close_photo: "Закрыть фото"
   },
   kz: {
@@ -31,7 +31,7 @@ const translations = {
     form_address: "Нысан мекенжайы", form_comment: "Техникалық бөлшектер", form_save: "Жобаны сақтау",
     hist_author: "Жауапты:", hist_empty: "Жобалар кеңістігі бос", detail_title: "Жоба картасы",
     btn_download: "Сақтау", btn_whatsapp: "WhatsApp-қа", btn_back: "Тізімге қайту",
-    btn_camera: "Суретке түсіру", btn_gallery: "Галереядан", btn_done_fullscreen: "Дайын",
+    btn_camera: "Суретке түсіру", btn_gallery: "Галереядан", btn_done_fullscreen: "Дайын / Жабу",
     btn_close_photo: "Суретті жабу"
   },
   en: {
@@ -45,7 +45,7 @@ const translations = {
     form_address: "Object Address", form_comment: "Technical Details", form_save: "Save Project",
     hist_author: "Assigned to:", hist_empty: "Project space is empty", detail_title: "Project Card",
     btn_download: "Download", btn_whatsapp: "WhatsApp", btn_back: "Back to list",
-    btn_camera: "Take Photo", btn_gallery: "From Gallery", btn_done_fullscreen: "Done",
+    btn_camera: "Take Photo", btn_gallery: "From Gallery", btn_done_fullscreen: "Done / Close",
     btn_close_photo: "Close photo"
   }
 };
@@ -96,14 +96,12 @@ const saveProjectToIDB = async (project) => {
   }
 };
 
-// Функция нормализации ориентации изображения (устраняет поворот набок с телефонов)
 const normalizeImageOrientation = (file, callback) => {
   const reader = new FileReader();
   reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      // Нормализуем размер под адекватный для работы
       const maxDim = 1920;
       let width = img.naturalWidth || img.width;
       let height = img.naturalHeight || img.height;
@@ -442,9 +440,12 @@ export default function App() {
       <div className="w-px h-5 bg-white/15 mx-0.5"></div>
       
       <div className="flex items-center gap-1.5 sm:gap-2">
-        <button onClick={() => setBrushSize(2)} className={`rounded-full transition-all duration-300 ${brushSize === 2 ? 'bg-white scale-110 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-2 h-2`} />
-        <button onClick={() => setBrushSize(4)} className={`rounded-full transition-all duration-300 ${brushSize === 4 ? 'bg-white scale-110 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-3 h-3`} />
-        <button onClick={() => setBrushSize(8)} className={`rounded-full transition-all duration-300 ${brushSize === 8 ? 'bg-white scale-110 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-4 h-4 sm:w-5 sm:h-5`} />
+        <button onClick={() => setBrushSize(2)} className={`rounded-full transition-all duration-300 ${brushSize === 2 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-1.5 h-1.5`} title="Очень тонкая" />
+        <button onClick={() => setBrushSize(4)} className={`rounded-full transition-all duration-300 ${brushSize === 4 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-2.5 h-2.5`} title="Тонкая" />
+        <button onClick={() => setBrushSize(8)} className={`rounded-full transition-all duration-300 ${brushSize === 8 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-3.5 h-3.5`} title="Средняя" />
+        <button onClick={() => setBrushSize(14)} className={`rounded-full transition-all duration-300 ${brushSize === 14 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-4.5 h-4.5`} title="Крупная" />
+        <button onClick={() => setBrushSize(22)} className={`rounded-full transition-all duration-300 ${brushSize === 22 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-6 h-6`} title="Жирная" />
+        <button onClick={() => setBrushSize(32)} className={`rounded-full transition-all duration-300 ${brushSize === 32 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-7.5 h-7.5`} title="Максимальная" />
       </div>
 
       <div className="w-px h-5 bg-white/15 mx-0.5"></div>
@@ -455,19 +456,6 @@ export default function App() {
       <button onClick={() => setPaths([])} className="p-2 sm:p-2.5 rounded-xl text-red-400/80 hover:bg-red-500/20 hover:text-red-400 transition-colors">
         <Trash2 size={16} strokeWidth={1.5} />
       </button>
-
-      {!isFs && (
-        <>
-          <div className="w-px h-5 bg-white/15 mx-0.5"></div>
-          <button 
-            onClick={clearImage} 
-            className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-300 hover:bg-red-500/30 text-xs font-medium flex items-center gap-1 transition-all"
-            title={t.btn_close_photo}
-          >
-            <X size={14} /> Закрыть
-          </button>
-        </>
-      )}
     </div>
   );
 
@@ -683,21 +671,21 @@ export default function App() {
               <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-stretch flex-1">
                 
                 <SpatialWindow className="flex-1 flex flex-col items-center justify-between p-4 sm:p-6 bg-black/25 relative overflow-hidden">
-                  {/* Явная верхняя плашка над фото для мобильных/планшетов с гарантированной кнопкой закрытия */}
-                  <div className="w-full flex justify-between items-center mb-3 shrink-0 bg-black/40 px-3.5 py-2 rounded-xl border border-white/10">
-                    <span className="text-[10px] sm:text-xs uppercase tracking-widest text-white/50">Разметка зоны</span>
+                  <div className="w-full flex justify-between items-center mb-3 shrink-0">
+                    <span className="text-[10px] sm:text-xs uppercase tracking-widest text-white/40">Разметка зоны</span>
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => setIsFullscreenDraw(true)}
-                        className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 flex items-center gap-1 text-white/90 transition-all text-[11px]"
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center gap-1.5 text-white/80 hover:text-white transition-all text-[11px] sm:text-xs tracking-wider"
                       >
-                        <Maximize2 size={12} /> На весь экран
+                        <Maximize2 size={13} /> На весь экран
                       </button>
                       <button 
                         onClick={clearImage} 
-                        className="px-3 py-1 rounded-lg bg-red-500/80 hover:bg-red-500 text-white font-medium flex items-center gap-1 transition-all text-[11px]"
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-white/70 hover:text-white hover:bg-red-500/20 hover:border-red-500/40 transition-all duration-300"
+                        title={t.btn_close_photo}
                       >
-                        <X size={12} /> Закрыть
+                        <X size={16} />
                       </button>
                     </div>
                   </div>
@@ -748,26 +736,26 @@ export default function App() {
         )}
 
         {isFullscreenDraw && uploadedImage && (
-          <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-3 sm:p-6 animate-in fade-in duration-300 select-none overflow-hidden">
-            <div className="w-full max-w-6xl flex justify-between items-center mb-3 shrink-0">
-              <span className="text-[10px] sm:text-xs uppercase tracking-widest text-white/40 bg-black/60 px-3 py-1.5 rounded-full border border-white/10 truncate max-w-[200px] sm:max-w-none">
+          <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-between p-3 sm:p-6 animate-in fade-in duration-300 select-none overflow-hidden">
+            <div className="w-full max-w-6xl flex justify-between items-center shrink-0">
+              <span className="text-[10px] sm:text-xs uppercase tracking-widest text-white/40 bg-black/60 px-3 py-1.5 rounded-full border border-white/10">
                 Полноэкранная разметка
               </span>
               <button 
                 onClick={() => setIsFullscreenDraw(false)}
-                className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-white text-black font-medium flex items-center gap-1.5 hover:scale-105 transition-all shadow-2xl text-xs sm:text-sm shrink-0"
+                className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white/80 hover:text-white text-xs transition-all"
               >
-                <Check size={16} /> {t.btn_done_fullscreen}
+                ✕ Свернуть
               </button>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center w-full max-w-6xl max-h-[75vh] overflow-hidden my-auto">
-              <div className="relative inline-flex items-center justify-center max-w-full max-h-[65vh]">
+            <div className="flex-1 flex flex-col items-center justify-center w-full max-w-6xl max-h-[68vh] overflow-hidden my-auto py-2">
+              <div className="relative inline-flex items-center justify-center max-w-full max-h-[68vh]">
                 <img 
                   ref={fsImageRef}
                   src={uploadedImage} 
                   alt="Во весь экран" 
-                  className="block max-w-full h-auto max-h-[65vh] rounded-2xl opacity-90 object-contain mx-auto" 
+                  className="block max-w-full h-auto max-h-[68vh] rounded-2xl opacity-90 object-contain mx-auto" 
                   onLoad={handleFsImageLoad} 
                 />
                 <canvas
@@ -777,8 +765,16 @@ export default function App() {
                   className="absolute top-0 left-0 w-full h-full z-10 cursor-crosshair touch-none"
                 />
               </div>
+            </div>
 
+            <div className="w-full max-w-3xl flex flex-wrap items-center justify-center gap-2 sm:gap-3 shrink-0">
               {renderToolbar(true)}
+              <button 
+                onClick={() => setIsFullscreenDraw(false)}
+                className="px-6 py-3 rounded-2xl bg-[#25D366] text-black font-semibold flex items-center gap-2 hover:scale-105 transition-all shadow-[0_0_20px_rgba(37,211,102,0.4)] text-xs sm:text-sm"
+              >
+                <Check size={18} /> {t.btn_done_fullscreen}
+              </button>
             </div>
           </div>
         )}
