@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Camera, Save, Undo, Eraser, Trash2, 
   PenTool, User, MapPin, LogOut, Download, 
-  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, X
+  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, Minimize2, Check
 } from 'lucide-react';
 
 const translations = {
@@ -17,7 +17,7 @@ const translations = {
     form_address: "Адрес объекта", form_comment: "Технические детали", form_save: "Сохранить проект",
     hist_author: "Ответственный:", hist_empty: "Пространство проектов пусто", detail_title: "Карточка проекта",
     btn_download: "Сохранить", btn_whatsapp: "В WhatsApp", btn_back: "Назад к списку",
-    btn_camera: "Сделать фото", btn_gallery: "Из галереи"
+    btn_camera: "Сделать фото", btn_gallery: "Из галереи", btn_done_fullscreen: "Готово / Закрыть"
   },
   kz: {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
@@ -30,7 +30,7 @@ const translations = {
     form_address: "Нысан мекенжайы", form_comment: "Техникалық бөлшектер", form_save: "Жобаны сақтау",
     hist_author: "Жауапты:", hist_empty: "Жобалар кеңістігі бос", detail_title: "Жоба картасы",
     btn_download: "Сақтау", btn_whatsapp: "WhatsApp-қа", btn_back: "Тізімге қайту",
-    btn_camera: "Суретке түсіру", btn_gallery: "Галереядан"
+    btn_camera: "Суретке түсіру", btn_gallery: "Галереядан", btn_done_fullscreen: "Дайын / Жабу"
   },
   en: {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
@@ -43,7 +43,7 @@ const translations = {
     form_address: "Object Address", form_comment: "Technical Details", form_save: "Save Project",
     hist_author: "Assigned to:", hist_empty: "Project space is empty", detail_title: "Project Card",
     btn_download: "Download", btn_whatsapp: "WhatsApp", btn_back: "Back to list",
-    btn_camera: "Take Photo", btn_gallery: "From Gallery"
+    btn_camera: "Take Photo", btn_gallery: "From Gallery", btn_done_fullscreen: "Done / Close"
   }
 };
 
@@ -124,10 +124,15 @@ export default function App() {
   const [comment, setComment] = useState('');
   const [history, setHistory] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [isFullscreenPhoto, setIsFullscreenPhoto] = useState(false);
+  
+  // Полноэкранный режим рисования
+  const [isFullscreenDraw, setIsFullscreenDraw] = useState(false);
 
   const canvasRef = useRef(null);
+  const fsCanvasRef = useRef(null);
   const imageRef = useRef(null);
+  const fsImageRef = useRef(null);
+  
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState('#FFFFFF');
   const [tool, setTool] = useState('pen'); 
@@ -217,8 +222,8 @@ export default function App() {
     }
   };
 
-  const getCoordinates = (e) => {
-    const canvas = canvasRef.current;
+  const getCoordinates = (e, targetCanvas) => {
+    const canvas = targetCanvas || canvasRef.current;
     if(!canvas) return {x:0, y:0};
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -230,16 +235,18 @@ export default function App() {
     };
   };
 
-  const startDrawing = (e) => {
+  const startDrawing = (e, isFs = false) => {
     e.preventDefault();
     setIsDrawing(true);
-    setCurrentPath({ tool, color, size: brushSize, points: [getCoordinates(e)] });
+    const activeCanvas = isFs ? fsCanvasRef.current : canvasRef.current;
+    setCurrentPath({ tool, color, size: brushSize, points: [getCoordinates(e, activeCanvas)] });
   };
 
-  const draw = (e) => {
+  const draw = (e, isFs = false) => {
     e.preventDefault();
     if (!isDrawing || !currentPath) return;
-    setCurrentPath(prev => ({ ...prev, points: [...prev.points, getCoordinates(e)] }));
+    const activeCanvas = isFs ? fsCanvasRef.current : canvasRef.current;
+    setCurrentPath(prev => ({ ...prev, points: [...prev.points, getCoordinates(e, activeCanvas)] }));
   };
 
   const stopDrawing = () => {
@@ -250,11 +257,11 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Отрисовка на обычном и полноэкранном холсте
+  const renderCanvasPaths = (targetCanvas) => {
+    if (!targetCanvas) return;
+    const ctx = targetCanvas.getContext('2d');
+    ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
     
     const drawPath = (path) => {
       ctx.beginPath();
@@ -273,13 +280,31 @@ export default function App() {
     paths.forEach(drawPath);
     if (currentPath) drawPath(currentPath);
     ctx.globalCompositeOperation = 'source-over';
-  }, [paths, currentPath]);
+  };
+
+  useEffect(() => {
+    renderCanvasPaths(canvasRef.current);
+    if (isFullscreenDraw) {
+      renderCanvasPaths(fsCanvasRef.current);
+    }
+  }, [paths, currentPath, isFullscreenDraw]);
 
   const handleImageLoad = (e) => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.width = e.target.naturalWidth;
-      canvas.height = e.target.naturalHeight;
+    const naturalW = e.target.naturalWidth;
+    const naturalH = e.target.naturalHeight;
+    if (canvasRef.current) {
+      canvasRef.current.width = naturalW;
+      canvasRef.current.height = naturalH;
+    }
+  };
+
+  const handleFsImageLoad = (e) => {
+    const naturalW = e.target.naturalWidth;
+    const naturalH = e.target.naturalHeight;
+    if (fsCanvasRef.current) {
+      fsCanvasRef.current.width = naturalW;
+      fsCanvasRef.current.height = naturalH;
+      renderCanvasPaths(fsCanvasRef.current);
     }
   };
 
@@ -287,13 +312,15 @@ export default function App() {
     if (!uploadedImage) return;
     const canvas = canvasRef.current;
     const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = canvas.width;
-    finalCanvas.height = canvas.height;
+    finalCanvas.width = canvas.width || 1280;
+    finalCanvas.height = canvas.height || 720;
     const finalCtx = finalCanvas.getContext('2d');
     
     const img = new Image();
     img.src = uploadedImage;
     img.onload = () => {
+      finalCanvas.width = img.naturalWidth || finalCanvas.width;
+      finalCanvas.height = img.naturalHeight || finalCanvas.height;
       finalCtx.drawImage(img, 0, 0);
       finalCtx.drawImage(canvas, 0, 0);
       
@@ -567,13 +594,13 @@ export default function App() {
             ) : (
               <div className="flex flex-col lg:flex-row gap-6">
                 <SpatialWindow className="flex-1 relative overflow-hidden flex items-center justify-center bg-black/20 p-4 min-h-[50vh]">
-                  {/* Кнопка полного экрана на фото в верхнем углу */}
+                  {/* Кнопка полноэкранного холста рисования */}
                   <button 
-                    onClick={() => setIsFullscreenPhoto(true)}
-                    className="absolute top-6 right-6 z-30 w-11 h-11 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/80 hover:text-white hover:bg-black/80 transition-all shadow-xl"
-                    title="Открыть фото во весь экран"
+                    onClick={() => setIsFullscreenDraw(true)}
+                    className="absolute top-6 right-6 z-30 px-4 py-2.5 rounded-full bg-black/70 backdrop-blur-md border border-white/20 flex items-center gap-2 text-white/90 hover:text-white hover:bg-black/90 transition-all shadow-xl text-xs uppercase tracking-wider"
+                    title="Рисовать во весь экран"
                   >
-                    <Maximize2 size={18} />
+                    <Maximize2 size={16} /> Во весь экран
                   </button>
 
                   <div className="relative inline-block max-w-full">
@@ -586,12 +613,13 @@ export default function App() {
                     />
                     <canvas
                       ref={canvasRef}
-                      onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
-                      onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing}
+                      onMouseDown={(e) => startDrawing(e, false)} onMouseMove={(e) => draw(e, false)} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
+                      onTouchStart={(e) => startDrawing(e, false)} onTouchMove={(e) => draw(e, false)} onTouchEnd={stopDrawing}
                       className="absolute top-0 left-0 w-full h-full z-10 cursor-crosshair touch-none"
                     />
                   </div>
                   
+                  {/* Панель инструментов (обычная) */}
                   <div className="absolute left-6 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2 bg-white/10 backdrop-blur-3xl border border-white/10 p-2 rounded-[30px] shadow-2xl">
                     <button onClick={() => setTool('pen')} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${tool === 'pen' ? 'bg-white text-black' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}>
                       <PenTool size={20} strokeWidth={1.5} />
@@ -627,6 +655,7 @@ export default function App() {
                   </div>
                 </SpatialWindow>
 
+                {/* Блок адреса и комментариев (сохраняется сбоку) */}
                 <SpatialWindow className="w-full lg:w-96 p-8 flex flex-col gap-8">
                   <div className="space-y-3">
                     <label className="text-[10px] text-white/40 uppercase tracking-widest">{t.form_address}</label>
@@ -653,25 +682,75 @@ export default function App() {
           </div>
         )}
 
-        {/* МОДАЛКА: ПРОСМОТР ФОТО ВО ВЬЕРАЙТЕР / НА ВЕСЬ ЭКРАН */}
-        {isFullscreenPhoto && uploadedImage && (
-          <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
-            <button 
-              onClick={() => setIsFullscreenPhoto(false)}
-              className="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center text-white transition-all shadow-2xl"
-            >
-              <X size={22} />
-            </button>
-            <p className="text-white/40 text-xs uppercase tracking-widest mb-4">Просмотр фото стены</p>
-            <div className="max-w-5xl max-h-[85vh] overflow-auto flex items-center justify-center">
-              <img src={uploadedImage} alt="Во весь экран" className="max-w-full max-h-[80vh] object-contain rounded-2xl border border-white/10" />
+        {/* ПОЛНОЭКРАННЫЙ РЕЖИМ РИСОВАНИЯ (НАСТОЯЩИЙ ИНТЕРАКТИВНЫЙ ХОЛСТ ВО ВЕСЬ ЭКРАН) */}
+        {isFullscreenDraw && uploadedImage && (
+          <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-4 animate-in fade-in duration-300 select-none">
+            {/* Верхняя плавающая панель закрытия */}
+            <div className="absolute top-6 left-6 right-6 z-30 flex justify-between items-center pointer-events-none">
+              <span className="text-xs uppercase tracking-widest text-white/40 pointer-events-auto bg-black/60 px-4 py-2 rounded-full border border-white/10">
+                Полноэкранная разметка стены
+              </span>
+              <button 
+                onClick={() => setIsFullscreenDraw(false)}
+                className="pointer-events-auto px-6 py-3 rounded-full bg-white text-black font-medium flex items-center gap-2 hover:scale-105 transition-all shadow-2xl text-sm"
+              >
+                <Check size={18} /> {t.btn_done_fullscreen}
+              </button>
             </div>
-            <button 
-              onClick={() => setIsFullscreenPhoto(false)}
-              className="mt-6 px-8 py-3 rounded-full bg-white text-black text-sm font-medium hover:scale-105 transition-all"
-            >
-              Закрыть и продолжить разметку
-            </button>
+
+            {/* Зона картинки и холста */}
+            <div className="relative flex items-center justify-center w-full h-full max-w-6xl max-h-[85vh]">
+              <div className="relative inline-block max-w-full max-h-full">
+                <img 
+                  ref={fsImageRef}
+                  src={uploadedImage} 
+                  alt="Во весь экран" 
+                  className="block max-w-full h-auto max-h-[80vh] rounded-2xl opacity-90 object-contain" 
+                  onLoad={handleFsImageLoad} 
+                />
+                <canvas
+                  ref={fsCanvasRef}
+                  onMouseDown={(e) => startDrawing(e, true)} onMouseMove={(e) => draw(e, true)} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
+                  onTouchStart={(e) => startDrawing(e, true)} onTouchMove={(e) => draw(e, true)} onTouchEnd={stopDrawing}
+                  className="absolute top-0 left-0 w-full h-full z-10 cursor-crosshair touch-none"
+                />
+              </div>
+
+              {/* Панель инструментов в полноэкранном режиме */}
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2 bg-white/10 backdrop-blur-3xl border border-white/10 p-2 rounded-[30px] shadow-2xl">
+                <button onClick={() => setTool('pen')} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${tool === 'pen' ? 'bg-white text-black' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}>
+                  <PenTool size={20} strokeWidth={1.5} />
+                </button>
+                <button onClick={() => setTool('eraser')} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${tool === 'eraser' ? 'bg-white text-black' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}>
+                  <Eraser size={20} strokeWidth={1.5} />
+                </button>
+                
+                <div className="w-8 h-px bg-white/10 mx-auto my-1"></div>
+                
+                <div className="relative w-12 h-12 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full border-2 border-white/20 overflow-hidden relative shadow-inner">
+                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute -top-4 -left-4 w-16 h-16 cursor-pointer" />
+                  </div>
+                </div>
+                
+                <div className="w-8 h-px bg-white/10 mx-auto my-1"></div>
+                
+                <div className="flex flex-col items-center justify-center gap-3 py-2 w-12">
+                  <button onClick={() => setBrushSize(2)} className={`rounded-full transition-all duration-300 ${brushSize === 2 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-2 h-2`} />
+                  <button onClick={() => setBrushSize(4)} className={`rounded-full transition-all duration-300 ${brushSize === 4 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-3 h-3`} />
+                  <button onClick={() => setBrushSize(8)} className={`rounded-full transition-all duration-300 ${brushSize === 8 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-[18px] h-[18px]`} />
+                </div>
+
+                <div className="w-8 h-px bg-white/10 mx-auto my-1"></div>
+
+                <button onClick={() => setPaths(paths.slice(0, -1))} className="w-12 h-12 rounded-full flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition-colors">
+                  <Undo size={20} strokeWidth={1.5} />
+                </button>
+                <button onClick={() => setPaths([])} className="w-12 h-12 rounded-full flex items-center justify-center text-red-400/70 hover:bg-red-500/20 hover:text-red-400 transition-colors">
+                  <Trash2 size={20} strokeWidth={1.5} />
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
