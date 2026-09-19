@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Camera, Save, Undo, Eraser, Trash2, 
   PenTool, User, MapPin, LogOut, Download, 
-  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, Check
+  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, Check, X
 } from 'lucide-react';
 
 const translations = {
@@ -17,7 +17,8 @@ const translations = {
     form_address: "Адрес объекта", form_comment: "Технические детали", form_save: "Сохранить проект",
     hist_author: "Ответственный:", hist_empty: "Пространство проектов пусто", detail_title: "Карточка проекта",
     btn_download: "Сохранить", btn_whatsapp: "В WhatsApp", btn_back: "Назад к списку",
-    btn_camera: "Сделать фото", btn_gallery: "Из галереи", btn_done_fullscreen: "Готово / Закрыть"
+    btn_camera: "Сделать фото", btn_gallery: "Из галереи", btn_done_fullscreen: "Готово",
+    btn_close_photo: "Закрыть фото"
   },
   kz: {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
@@ -30,7 +31,8 @@ const translations = {
     form_address: "Нысан мекенжайы", form_comment: "Техникалық бөлшектер", form_save: "Жобаны сақтау",
     hist_author: "Жауапты:", hist_empty: "Жобалар кеңістігі бос", detail_title: "Жоба картасы",
     btn_download: "Сақтау", btn_whatsapp: "WhatsApp-қа", btn_back: "Тізімге қайту",
-    btn_camera: "Суретке түсіру", btn_gallery: "Галереядан", btn_done_fullscreen: "Дайын / Жабу"
+    btn_camera: "Суретке түсіру", btn_gallery: "Галереядан", btn_done_fullscreen: "Дайын",
+    btn_close_photo: "Суретті жабу"
   },
   en: {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
@@ -43,7 +45,8 @@ const translations = {
     form_address: "Object Address", form_comment: "Technical Details", form_save: "Save Project",
     hist_author: "Assigned to:", hist_empty: "Project space is empty", detail_title: "Project Card",
     btn_download: "Download", btn_whatsapp: "WhatsApp", btn_back: "Back to list",
-    btn_camera: "Take Photo", btn_gallery: "From Gallery", btn_done_fullscreen: "Done / Close"
+    btn_camera: "Take Photo", btn_gallery: "From Gallery", btn_done_fullscreen: "Done",
+    btn_close_photo: "Close photo"
   }
 };
 
@@ -221,6 +224,12 @@ export default function App() {
     }
   };
 
+  const clearImage = () => {
+    setUploadedImage(null);
+    setPaths([]);
+    setIsFullscreenDraw(false);
+  };
+
   const getCoordinates = (e, targetCanvas) => {
     const canvas = targetCanvas || canvasRef.current;
     if(!canvas) return {x:0, y:0};
@@ -379,14 +388,14 @@ export default function App() {
     setActivePage('history');
   };
 
-  // Компактная непересекающаяся нижняя панель инструментов
+  // Компактная нижняя панель с кнопкой закрытия/сброса фото сбоку
   const renderToolbar = (isFs = false) => (
     <div className={`flex flex-wrap items-center justify-center gap-2 sm:gap-3 bg-white/10 backdrop-blur-3xl border border-white/10 px-3 sm:px-5 py-2.5 rounded-2xl shadow-2xl shrink-0 ${isFs ? 'mt-3' : 'mt-2.5'}`}>
       <button onClick={() => setTool('pen')} className={`p-2 sm:p-2.5 rounded-xl transition-all duration-300 ${tool === 'pen' ? 'bg-white text-black' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
-        <PenTool size={16} sm-size={18} strokeWidth={1.5} />
+        <PenTool size={16} strokeWidth={1.5} />
       </button>
       <button onClick={() => setTool('eraser')} className={`p-2 sm:p-2.5 rounded-xl transition-all duration-300 ${tool === 'eraser' ? 'bg-white text-black' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
-        <Eraser size={16} sm-size={18} strokeWidth={1.5} />
+        <Eraser size={16} strokeWidth={1.5} />
       </button>
       
       <div className="w-px h-5 bg-white/15 mx-0.5"></div>
@@ -408,11 +417,24 @@ export default function App() {
       <div className="w-px h-5 bg-white/15 mx-0.5"></div>
 
       <button onClick={() => setPaths(paths.slice(0, -1))} className="p-2 sm:p-2.5 rounded-xl text-white/60 hover:bg-white/10 hover:text-white transition-colors">
-        <Undo size={16} sm-size={18} strokeWidth={1.5} />
+        <Undo size={16} strokeWidth={1.5} />
       </button>
       <button onClick={() => setPaths([])} className="p-2 sm:p-2.5 rounded-xl text-red-400/80 hover:bg-red-500/20 hover:text-red-400 transition-colors">
-        <Trash2 size={16} sm-size={18} strokeWidth={1.5} />
+        <Trash2 size={16} strokeWidth={1.5} />
       </button>
+
+      {!isFs && (
+        <>
+          <div className="w-px h-5 bg-white/15 mx-0.5"></div>
+          <button 
+            onClick={clearImage} 
+            className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-300 hover:bg-red-500/30 text-xs font-medium flex items-center gap-1 transition-all"
+            title={t.btn_close_photo}
+          >
+            <X size={14} /> Закрыть
+          </button>
+        </>
+      )}
     </div>
   );
 
@@ -600,10 +622,8 @@ export default function App() {
         </header>
       )}
 
-      {/* Адаптивный отступ под шапку при любом повороте экрана */}
       <main className={`flex-1 ${activePage === 'detail' ? 'pt-8' : 'pt-20 sm:pt-24'} pb-8 px-3 sm:px-6 max-w-7xl mx-auto w-full relative z-10 flex flex-col`}>
         
-        {/* НОВЫЙ ПРОЕКТ (Адаптив портрет/ландшафт) */}
         {activePage === 'new' && (
           <div className="animate-in fade-in duration-500 flex-1 flex flex-col">
             {!uploadedImage ? (
@@ -629,16 +649,23 @@ export default function App() {
             ) : (
               <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-stretch flex-1">
                 
-                {/* Левая/Основная часть: Фото + инструмент под ней в непересекающемся потоке */}
                 <SpatialWindow className="flex-1 flex flex-col items-center justify-between p-4 sm:p-6 bg-black/25 overflow-hidden">
                   <div className="w-full flex justify-between items-center mb-3 shrink-0">
                     <span className="text-[10px] sm:text-xs uppercase tracking-widest text-white/40">Разметка зоны</span>
-                    <button 
-                      onClick={() => setIsFullscreenDraw(true)}
-                      className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center gap-1.5 text-white/80 hover:text-white transition-all text-[11px] sm:text-xs tracking-wider"
-                    >
-                      <Maximize2 size={13} /> На весь экран
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setIsFullscreenDraw(true)}
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center gap-1.5 text-white/80 hover:text-white transition-all text-[11px] sm:text-xs tracking-wider"
+                      >
+                        <Maximize2 size={13} /> На весь экран
+                      </button>
+                      <button 
+                        onClick={clearImage}
+                        className="px-3 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 flex items-center gap-1 text-red-300 transition-all text-[11px]"
+                      >
+                        <X size={13} /> {t.btn_close_photo}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="relative inline-flex items-center justify-center max-w-full max-h-[45vh] lg:max-h-[55vh] overflow-hidden my-auto">
@@ -657,11 +684,9 @@ export default function App() {
                     />
                   </div>
                   
-                  {/* Строго под картинкой, без перекрытий */}
                   {renderToolbar(false)}
                 </SpatialWindow>
 
-                {/* Правая/Нижняя часть: Адрес и комментарии */}
                 <SpatialWindow className="w-full lg:w-80 xl:w-96 p-5 sm:p-7 flex flex-col gap-5 shrink-0">
                   <div className="space-y-2">
                     <label className="text-[10px] text-white/40 uppercase tracking-widest">{t.form_address}</label>
@@ -688,7 +713,6 @@ export default function App() {
           </div>
         )}
 
-        {/* ПОЛНОЭКРАННЫЙ РЕЖИМ РИСОВАНИЯ (Безопасный отступ для портрета/альбома) */}
         {isFullscreenDraw && uploadedImage && (
           <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-3 sm:p-6 animate-in fade-in duration-300 select-none overflow-hidden">
             <div className="w-full max-w-6xl flex justify-between items-center mb-3 shrink-0">
@@ -725,7 +749,6 @@ export default function App() {
           </div>
         )}
 
-        {/* БАЗА ПРОЕКТОВ */}
         {activePage === 'history' && (
           <div className="animate-in fade-in duration-500">
             {history.length === 0 ? (
@@ -775,7 +798,6 @@ export default function App() {
           </div>
         )}
 
-        {/* КАРТОЧКА ПРОЕКТА */}
         {activePage === 'detail' && selectedRecord && (
           <div className="animate-in fade-in duration-500">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
