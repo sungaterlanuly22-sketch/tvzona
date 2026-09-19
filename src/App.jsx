@@ -388,7 +388,6 @@ export default function App() {
     setActivePage('history');
   };
 
-  // Компактная нижняя панель с кнопкой закрытия/сброса фото сбоку
   const renderToolbar = (isFs = false) => (
     <div className={`flex flex-wrap items-center justify-center gap-2 sm:gap-3 bg-white/10 backdrop-blur-3xl border border-white/10 px-3 sm:px-5 py-2.5 rounded-2xl shadow-2xl shrink-0 ${isFs ? 'mt-3' : 'mt-2.5'}`}>
       <button onClick={() => setTool('pen')} className={`p-2 sm:p-2.5 rounded-xl transition-all duration-300 ${tool === 'pen' ? 'bg-white text-black' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
@@ -649,23 +648,24 @@ export default function App() {
             ) : (
               <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-stretch flex-1">
                 
-                <SpatialWindow className="flex-1 flex flex-col items-center justify-between p-4 sm:p-6 bg-black/25 overflow-hidden">
-                  <div className="w-full flex justify-between items-center mb-3 shrink-0">
+                <SpatialWindow className="flex-1 flex flex-col items-center justify-between p-4 sm:p-6 bg-black/25 relative overflow-hidden">
+                  {/* Плавающая красная кнопка закрытия прямо в правом верхнем углу фото-контейнера */}
+                  <button 
+                    onClick={clearImage}
+                    className="absolute top-4 right-4 z-40 px-3.5 py-1.5 rounded-full bg-red-500/85 hover:bg-red-500 text-white font-medium flex items-center gap-1.5 shadow-2xl text-xs backdrop-blur-md transition-all cursor-pointer"
+                    title={t.btn_close_photo}
+                  >
+                    <X size={14} /> Закрыть
+                  </button>
+
+                  <div className="w-full flex justify-between items-center mb-3 pr-24 shrink-0">
                     <span className="text-[10px] sm:text-xs uppercase tracking-widest text-white/40">Разметка зоны</span>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => setIsFullscreenDraw(true)}
-                        className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center gap-1.5 text-white/80 hover:text-white transition-all text-[11px] sm:text-xs tracking-wider"
-                      >
-                        <Maximize2 size={13} /> На весь экран
-                      </button>
-                      <button 
-                        onClick={clearImage}
-                        className="px-3 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 flex items-center gap-1 text-red-300 transition-all text-[11px]"
-                      >
-                        <X size={13} /> {t.btn_close_photo}
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => setIsFullscreenDraw(true)}
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center gap-1.5 text-white/80 hover:text-white transition-all text-[11px] sm:text-xs tracking-wider"
+                    >
+                      <Maximize2 size={13} /> На весь экран
+                    </button>
                   </div>
 
                   <div className="relative inline-flex items-center justify-center max-w-full max-h-[45vh] lg:max-h-[55vh] overflow-hidden my-auto">
