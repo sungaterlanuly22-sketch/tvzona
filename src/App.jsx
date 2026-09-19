@@ -632,42 +632,47 @@ export default function App() {
       <div className="fixed bottom-0 right-0 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
 
       {activePage !== 'detail' && (
-        <header className="fixed top-3 sm:top-5 left-3 sm:left-6 right-3 sm:right-6 z-40 flex justify-between items-center pointer-events-none gap-2 animate-in fade-in duration-500">
+        <header className="fixed top-3 sm:top-5 left-2 sm:left-6 right-2 sm:right-6 z-40 flex justify-between items-center pointer-events-none gap-1 sm:gap-2 animate-in fade-in duration-500">
           
-          <div className="pointer-events-auto bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full px-4 sm:px-5 py-2 flex items-center gap-2.5 shadow-lg shrink-0">
+          {/* 1. Имя пользователя (на телефоне остается только иконка) */}
+          <div className="pointer-events-auto bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-2.5 sm:px-5 sm:py-2 flex items-center gap-2.5 shadow-lg shrink-0">
             <Eye size={16} className="text-white/70" />
-            <span className="text-xs sm:text-sm tracking-widest font-light truncate max-w-[100px] sm:max-w-none">{currentUser.name}</span>
+            <span className="hidden sm:block text-xs sm:text-sm tracking-widest font-light truncate max-w-[100px] sm:max-w-none">{currentUser.name}</span>
           </div>
 
+          {/* 2. Навигация (на телефоне остаются только иконки плюса и сетки) */}
           <div className="pointer-events-auto flex items-center gap-1 sm:gap-2 bg-white/5 backdrop-blur-2xl border border-white/10 p-1 rounded-full shadow-lg shrink-0">
             <button 
               onClick={() => setActivePage('new')} 
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 sm:px-5 sm:py-2 rounded-full transition-all duration-300 ${activePage === 'new' ? 'bg-white text-black shadow-md scale-105' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 sm:px-5 sm:py-2 rounded-full transition-all duration-300 ${activePage === 'new' ? 'bg-white text-black shadow-md scale-105' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+              title={t.nav_new}
             >
-              <Plus size={14} strokeWidth={activePage === 'new' ? 2 : 1.5} />
-              <span className="text-xs sm:text-sm tracking-wide font-medium">{t.nav_new}</span>
+              <Plus size={16} strokeWidth={activePage === 'new' ? 2 : 1.5} />
+              <span className="hidden md:block text-xs sm:text-sm tracking-wide font-medium">{t.nav_new}</span>
             </button>
             <button 
               onClick={() => setActivePage('history')} 
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 sm:px-5 sm:py-2 rounded-full transition-all duration-300 ${activePage === 'history' ? 'bg-white text-black shadow-md scale-105' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 sm:px-5 sm:py-2 rounded-full transition-all duration-300 ${activePage === 'history' ? 'bg-white text-black shadow-md scale-105' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+              title={t.nav_history}
             >
-              <Grid size={14} strokeWidth={activePage === 'history' ? 2 : 1.5} />
-              <span className="text-xs sm:text-sm tracking-wide font-medium">{t.nav_history}</span>
+              <Grid size={16} strokeWidth={activePage === 'history' ? 2 : 1.5} />
+              <span className="hidden md:block text-xs sm:text-sm tracking-wide font-medium">{t.nav_history}</span>
             </button>
           </div>
 
-          <div className="pointer-events-auto flex gap-2 items-center shrink-0">
-            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-1 hidden lg:flex gap-1 shadow-lg">
+          {/* 3. Языки и Выход (теперь всегда видны на любых экранах) */}
+          <div className="pointer-events-auto flex gap-1 sm:gap-2 items-center shrink-0">
+            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-1 flex gap-1 shadow-lg">
               {['ru', 'kz', 'en'].map(l => (
                 <button 
                   key={l} onClick={() => setLang(l)} 
-                  className={`px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300 ${lang === l ? 'bg-white/20 text-white font-medium' : 'text-white/40 hover:text-white/80'}`}
+                  className={`px-2 py-1.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300 ${lang === l ? 'bg-white/20 text-white font-medium' : 'text-white/40 hover:text-white/80'}`}
                 >
                   {l}
                 </button>
               ))}
             </div>
-            <button onClick={handleLogout} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all shadow-lg">
+            <button onClick={handleLogout} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all shadow-lg shrink-0">
               <LogOut size={15} />
             </button>
           </div>
