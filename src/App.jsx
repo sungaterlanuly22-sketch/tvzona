@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Camera, Save, Undo, Eraser, Trash2, 
   PenTool, User, MapPin, LogOut, Download, 
-  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, Minimize2, Check
+  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, Check
 } from 'lucide-react';
 
 const translations = {
@@ -48,7 +48,7 @@ const translations = {
 };
 
 const SpatialWindow = ({ children, className = '' }) => (
-  <div className={`bg-white/[0.04] backdrop-blur-[40px] border border-white/[0.08] shadow-[0_30px_80px_rgba(0,0,0,0.6)] rounded-[32px] ${className}`}>
+  <div className={`bg-white/[0.04] backdrop-blur-[40px] border border-white/[0.08] shadow-[0_30px_80px_rgba(0,0,0,0.6)] rounded-[28px] ${className}`}>
     {children}
   </div>
 );
@@ -125,7 +125,6 @@ export default function App() {
   const [history, setHistory] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
   
-  // Полноэкранный режим рисования
   const [isFullscreenDraw, setIsFullscreenDraw] = useState(false);
 
   const canvasRef = useRef(null);
@@ -257,7 +256,6 @@ export default function App() {
     }
   };
 
-  // Отрисовка на обычном и полноэкранном холсте
   const renderCanvasPaths = (targetCanvas) => {
     if (!targetCanvas) return;
     const ctx = targetCanvas.getContext('2d');
@@ -381,6 +379,43 @@ export default function App() {
     setActivePage('history');
   };
 
+  // Компактная непересекающаяся нижняя панель инструментов
+  const renderToolbar = (isFs = false) => (
+    <div className={`flex flex-wrap items-center justify-center gap-2 sm:gap-3 bg-white/10 backdrop-blur-3xl border border-white/10 px-3 sm:px-5 py-2.5 rounded-2xl shadow-2xl shrink-0 ${isFs ? 'mt-3' : 'mt-2.5'}`}>
+      <button onClick={() => setTool('pen')} className={`p-2 sm:p-2.5 rounded-xl transition-all duration-300 ${tool === 'pen' ? 'bg-white text-black' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+        <PenTool size={16} sm-size={18} strokeWidth={1.5} />
+      </button>
+      <button onClick={() => setTool('eraser')} className={`p-2 sm:p-2.5 rounded-xl transition-all duration-300 ${tool === 'eraser' ? 'bg-white text-black' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+        <Eraser size={16} sm-size={18} strokeWidth={1.5} />
+      </button>
+      
+      <div className="w-px h-5 bg-white/15 mx-0.5"></div>
+      
+      <div className="relative w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center">
+        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-white/30 overflow-hidden relative shadow-inner">
+          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute -top-3 -left-3 w-14 h-14 cursor-pointer" />
+        </div>
+      </div>
+      
+      <div className="w-px h-5 bg-white/15 mx-0.5"></div>
+      
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        <button onClick={() => setBrushSize(2)} className={`rounded-full transition-all duration-300 ${brushSize === 2 ? 'bg-white scale-110 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-2 h-2`} />
+        <button onClick={() => setBrushSize(4)} className={`rounded-full transition-all duration-300 ${brushSize === 4 ? 'bg-white scale-110 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-3 h-3`} />
+        <button onClick={() => setBrushSize(8)} className={`rounded-full transition-all duration-300 ${brushSize === 8 ? 'bg-white scale-110 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-4 h-4 sm:w-5 sm:h-5`} />
+      </div>
+
+      <div className="w-px h-5 bg-white/15 mx-0.5"></div>
+
+      <button onClick={() => setPaths(paths.slice(0, -1))} className="p-2 sm:p-2.5 rounded-xl text-white/60 hover:bg-white/10 hover:text-white transition-colors">
+        <Undo size={16} sm-size={18} strokeWidth={1.5} />
+      </button>
+      <button onClick={() => setPaths([])} className="p-2 sm:p-2.5 rounded-xl text-red-400/80 hover:bg-red-500/20 hover:text-red-400 transition-colors">
+        <Trash2 size={16} sm-size={18} strokeWidth={1.5} />
+      </button>
+    </div>
+  );
+
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden font-sans">
@@ -398,13 +433,13 @@ export default function App() {
           ))}
         </div>
 
-        <SpatialWindow className="w-full max-w-md p-10 animate-in fade-in zoom-in-95 duration-700 relative z-10">
+        <SpatialWindow className="w-full max-w-md p-8 sm:p-10 animate-in fade-in zoom-in-95 duration-700 relative z-10">
           {authStep === 'form' ? (
             <>
-              <div className="text-center mb-8">
-                <Lock className="w-12 h-12 text-white/80 mx-auto mb-4 opacity-80" strokeWidth={1} />
-                <h1 className="text-2xl font-medium tracking-wide text-white mb-1">{t.sys_name}</h1>
-                <p className="text-white/40 text-xs tracking-widest uppercase">{t.auth_title}</p>
+              <div className="text-center mb-6 sm:mb-8">
+                <Lock className="w-10 h-10 sm:w-12 sm:h-12 text-white/80 mx-auto mb-3 sm:mb-4 opacity-80" strokeWidth={1} />
+                <h1 className="text-xl sm:text-2xl font-medium tracking-wide text-white mb-1">{t.sys_name}</h1>
+                <p className="text-white/40 text-[10px] sm:text-xs tracking-widest uppercase">{t.auth_title}</p>
               </div>
 
               <div className="flex bg-white/5 p-1 rounded-2xl mb-6 border border-white/5">
@@ -433,7 +468,7 @@ export default function App() {
                       value={authName}
                       onChange={e => setAuthName(e.target.value)}
                       placeholder={t.auth_name} 
-                      className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-4 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
+                      className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-3.5 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
                     />
                   </div>
                 )}
@@ -445,7 +480,7 @@ export default function App() {
                     value={authEmail}
                     onChange={e => setAuthEmail(e.target.value)}
                     placeholder={t.auth_email} 
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-4 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
+                    className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-3.5 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
                   />
                 </div>
 
@@ -456,7 +491,7 @@ export default function App() {
                     value={authPass}
                     onChange={e => setAuthPass(e.target.value)}
                     placeholder={t.auth_pass} 
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-4 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
+                    className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-3.5 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
                   />
                 </div>
 
@@ -464,7 +499,7 @@ export default function App() {
                   <p className="text-red-400 text-xs text-center font-light">{authError}</p>
                 )}
 
-                <button type="submit" className="w-full bg-white text-black rounded-2xl py-4 font-medium hover:scale-[1.02] transition-transform duration-300 mt-4 shadow-[0_0_20px_rgba(255,255,255,0.2)] text-sm">
+                <button type="submit" className="w-full bg-white text-black rounded-2xl py-3.5 font-medium hover:scale-[1.02] transition-transform duration-300 mt-4 shadow-[0_0_20px_rgba(255,255,255,0.2)] text-sm">
                   {authMode === 'register' ? t.auth_btn_reg : t.auth_btn_login}
                 </button>
               </form>
@@ -517,98 +552,101 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-black text-white font-sans flex flex-col relative overflow-x-hidden">
       
       <div className="fixed top-0 left-0 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none mix-blend-screen"></div>
       <div className="fixed bottom-0 right-0 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
 
       {activePage !== 'detail' && (
-        <header className="fixed top-6 left-6 right-6 z-40 flex justify-between items-center pointer-events-none animate-in fade-in duration-500">
+        <header className="fixed top-3 sm:top-5 left-3 sm:left-6 right-3 sm:right-6 z-40 flex justify-between items-center pointer-events-none gap-2 animate-in fade-in duration-500">
           
-          <div className="pointer-events-auto bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full px-5 py-2.5 flex items-center gap-3 shadow-lg">
-            <Eye size={18} className="text-white/70" />
-            <span className="text-sm tracking-widest font-light hidden sm:inline-block">{currentUser.name}</span>
+          <div className="pointer-events-auto bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full px-4 sm:px-5 py-2 flex items-center gap-2.5 shadow-lg shrink-0">
+            <Eye size={16} className="text-white/70" />
+            <span className="text-xs sm:text-sm tracking-widest font-light truncate max-w-[100px] sm:max-w-none">{currentUser.name}</span>
           </div>
 
-          <div className="pointer-events-auto flex items-center gap-2 bg-white/5 backdrop-blur-2xl border border-white/10 p-1.5 rounded-full shadow-lg">
+          <div className="pointer-events-auto flex items-center gap-1 sm:gap-2 bg-white/5 backdrop-blur-2xl border border-white/10 p-1 rounded-full shadow-lg shrink-0">
             <button 
               onClick={() => setActivePage('new')} 
-              className={`flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-2.5 rounded-full transition-all duration-300 ${activePage === 'new' ? 'bg-white text-black shadow-md scale-105' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 sm:px-5 sm:py-2 rounded-full transition-all duration-300 ${activePage === 'new' ? 'bg-white text-black shadow-md scale-105' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
             >
-              <Plus size={16} strokeWidth={activePage === 'new' ? 2 : 1.5} />
-              <span className="text-sm tracking-wide font-medium hidden sm:inline-block">{t.nav_new}</span>
+              <Plus size={14} strokeWidth={activePage === 'new' ? 2 : 1.5} />
+              <span className="text-xs sm:text-sm tracking-wide font-medium">{t.nav_new}</span>
             </button>
             <button 
               onClick={() => setActivePage('history')} 
-              className={`flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-2.5 rounded-full transition-all duration-300 ${activePage === 'history' ? 'bg-white text-black shadow-md scale-105' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 sm:px-5 sm:py-2 rounded-full transition-all duration-300 ${activePage === 'history' ? 'bg-white text-black shadow-md scale-105' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
             >
-              <Grid size={16} strokeWidth={activePage === 'history' ? 2 : 1.5} />
-              <span className="text-sm tracking-wide font-medium hidden sm:inline-block">{t.nav_history}</span>
+              <Grid size={14} strokeWidth={activePage === 'history' ? 2 : 1.5} />
+              <span className="text-xs sm:text-sm tracking-wide font-medium">{t.nav_history}</span>
             </button>
           </div>
 
-          <div className="pointer-events-auto flex gap-3 sm:gap-4 items-center">
-            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-1.5 flex gap-1 shadow-lg hidden md:flex">
+          <div className="pointer-events-auto flex gap-2 items-center shrink-0">
+            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-1 hidden lg:flex gap-1 shadow-lg">
               {['ru', 'kz', 'en'].map(l => (
                 <button 
                   key={l} onClick={() => setLang(l)} 
-                  className={`px-3 py-1.5 rounded-full text-xs uppercase tracking-wider transition-all duration-300 ${lang === l ? 'bg-white/20 text-white font-medium' : 'text-white/40 hover:text-white/80'}`}
+                  className={`px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300 ${lang === l ? 'bg-white/20 text-white font-medium' : 'text-white/40 hover:text-white/80'}`}
                 >
                   {l}
                 </button>
               ))}
             </div>
-            <button onClick={handleLogout} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full w-10 h-10 md:w-auto md:px-4 flex items-center justify-center gap-2 text-white/50 hover:text-white hover:bg-white/10 transition-all shadow-lg">
-              <LogOut size={16} />
-              <span className="hidden md:inline text-xs font-medium uppercase tracking-widest">Выйти</span>
+            <button onClick={handleLogout} className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all shadow-lg">
+              <LogOut size={15} />
             </button>
           </div>
         </header>
       )}
 
-      <main className={`flex-1 ${activePage === 'detail' ? 'pt-10' : 'pt-28'} pb-10 px-4 md:px-8 max-w-7xl mx-auto w-full relative z-10`}>
+      {/* Адаптивный отступ под шапку при любом повороте экрана */}
+      <main className={`flex-1 ${activePage === 'detail' ? 'pt-8' : 'pt-20 sm:pt-24'} pb-8 px-3 sm:px-6 max-w-7xl mx-auto w-full relative z-10 flex flex-col`}>
         
-        {/* НОВЫЙ ПРОЕКТ */}
+        {/* НОВЫЙ ПРОЕКТ (Адаптив портрет/ландшафт) */}
         {activePage === 'new' && (
-          <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+          <div className="animate-in fade-in duration-500 flex-1 flex flex-col">
             {!uploadedImage ? (
-              <SpatialWindow className="h-[70vh] flex flex-col items-center justify-center p-6">
-                <div className="flex flex-col sm:flex-row gap-6 w-full max-w-2xl">
-                  <label className="flex-1 flex flex-col items-center justify-center p-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[32px] cursor-pointer transition-all group shadow-inner">
-                    <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
-                      <Camera size={32} className="text-white/70 group-hover:text-white transition-colors" strokeWidth={1.5} />
+              <SpatialWindow className="flex-1 min-h-[50vh] flex flex-col items-center justify-center p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 w-full max-w-xl">
+                  <label className="flex-1 flex flex-col items-center justify-center p-8 sm:p-10 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[24px] cursor-pointer transition-all group shadow-inner">
+                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-500">
+                      <Camera size={28} className="text-white/70 group-hover:text-white transition-colors" strokeWidth={1.5} />
                     </div>
-                    <span className="text-sm font-light tracking-widest uppercase text-white/70 group-hover:text-white transition-colors">{t.btn_camera}</span>
+                    <span className="text-xs sm:text-sm font-light tracking-widest uppercase text-white/70 group-hover:text-white transition-colors">{t.btn_camera}</span>
                     <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                   </label>
 
-                  <label className="flex-1 flex flex-col items-center justify-center p-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[32px] cursor-pointer transition-all group shadow-inner">
-                    <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
-                      <ImageIcon size={32} className="text-white/70 group-hover:text-white transition-colors" strokeWidth={1.5} />
+                  <label className="flex-1 flex flex-col items-center justify-center p-8 sm:p-10 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[24px] cursor-pointer transition-all group shadow-inner">
+                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-500">
+                      <ImageIcon size={28} className="text-white/70 group-hover:text-white transition-colors" strokeWidth={1.5} />
                     </div>
-                    <span className="text-sm font-light tracking-widest uppercase text-white/70 group-hover:text-white transition-colors">{t.btn_gallery}</span>
+                    <span className="text-xs sm:text-sm font-light tracking-widest uppercase text-white/70 group-hover:text-white transition-colors">{t.btn_gallery}</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                   </label>
                 </div>
               </SpatialWindow>
             ) : (
-              <div className="flex flex-col lg:flex-row gap-6">
-                <SpatialWindow className="flex-1 relative overflow-hidden flex items-center justify-center bg-black/20 p-4 min-h-[50vh]">
-                  {/* Кнопка полноэкранного холста рисования */}
-                  <button 
-                    onClick={() => setIsFullscreenDraw(true)}
-                    className="absolute top-6 right-6 z-30 px-4 py-2.5 rounded-full bg-black/70 backdrop-blur-md border border-white/20 flex items-center gap-2 text-white/90 hover:text-white hover:bg-black/90 transition-all shadow-xl text-xs uppercase tracking-wider"
-                    title="Рисовать во весь экран"
-                  >
-                    <Maximize2 size={16} /> Во весь экран
-                  </button>
+              <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-stretch flex-1">
+                
+                {/* Левая/Основная часть: Фото + инструмент под ней в непересекающемся потоке */}
+                <SpatialWindow className="flex-1 flex flex-col items-center justify-between p-4 sm:p-6 bg-black/25 overflow-hidden">
+                  <div className="w-full flex justify-between items-center mb-3 shrink-0">
+                    <span className="text-[10px] sm:text-xs uppercase tracking-widest text-white/40">Разметка зоны</span>
+                    <button 
+                      onClick={() => setIsFullscreenDraw(true)}
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center gap-1.5 text-white/80 hover:text-white transition-all text-[11px] sm:text-xs tracking-wider"
+                    >
+                      <Maximize2 size={13} /> На весь экран
+                    </button>
+                  </div>
 
-                  <div className="relative inline-block max-w-full">
+                  <div className="relative inline-flex items-center justify-center max-w-full max-h-[45vh] lg:max-h-[55vh] overflow-hidden my-auto">
                     <img 
                       ref={imageRef}
                       src={uploadedImage} 
                       alt="Основа" 
-                      className="block max-w-full h-auto max-h-[70vh] rounded-2xl opacity-90" 
+                      className="block max-w-full h-auto max-h-[45vh] lg:max-h-[55vh] rounded-2xl opacity-90 object-contain mx-auto" 
                       onLoad={handleImageLoad} 
                     />
                     <canvas
@@ -619,62 +657,30 @@ export default function App() {
                     />
                   </div>
                   
-                  {/* Панель инструментов (обычная) */}
-                  <div className="absolute left-6 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2 bg-white/10 backdrop-blur-3xl border border-white/10 p-2 rounded-[30px] shadow-2xl">
-                    <button onClick={() => setTool('pen')} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${tool === 'pen' ? 'bg-white text-black' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}>
-                      <PenTool size={20} strokeWidth={1.5} />
-                    </button>
-                    <button onClick={() => setTool('eraser')} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${tool === 'eraser' ? 'bg-white text-black' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}>
-                      <Eraser size={20} strokeWidth={1.5} />
-                    </button>
-                    
-                    <div className="w-8 h-px bg-white/10 mx-auto my-1"></div>
-                    
-                    <div className="relative w-12 h-12 flex items-center justify-center">
-                      <div className="w-8 h-8 rounded-full border-2 border-white/20 overflow-hidden relative shadow-inner">
-                        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute -top-4 -left-4 w-16 h-16 cursor-pointer" />
-                      </div>
-                    </div>
-                    
-                    <div className="w-8 h-px bg-white/10 mx-auto my-1"></div>
-                    
-                    <div className="flex flex-col items-center justify-center gap-3 py-2 w-12">
-                      <button onClick={() => setBrushSize(2)} className={`rounded-full transition-all duration-300 ${brushSize === 2 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-2 h-2`} title="Тонкая" />
-                      <button onClick={() => setBrushSize(4)} className={`rounded-full transition-all duration-300 ${brushSize === 4 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-3 h-3`} title="Средняя" />
-                      <button onClick={() => setBrushSize(8)} className={`rounded-full transition-all duration-300 ${brushSize === 8 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-[18px] h-[18px]`} title="Толстая" />
-                    </div>
-
-                    <div className="w-8 h-px bg-white/10 mx-auto my-1"></div>
-
-                    <button onClick={() => setPaths(paths.slice(0, -1))} className="w-12 h-12 rounded-full flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition-colors">
-                      <Undo size={20} strokeWidth={1.5} />
-                    </button>
-                    <button onClick={() => setPaths([])} className="w-12 h-12 rounded-full flex items-center justify-center text-red-400/70 hover:bg-red-500/20 hover:text-red-400 transition-colors">
-                      <Trash2 size={20} strokeWidth={1.5} />
-                    </button>
-                  </div>
+                  {/* Строго под картинкой, без перекрытий */}
+                  {renderToolbar(false)}
                 </SpatialWindow>
 
-                {/* Блок адреса и комментариев (сохраняется сбоку) */}
-                <SpatialWindow className="w-full lg:w-96 p-8 flex flex-col gap-8">
-                  <div className="space-y-3">
+                {/* Правая/Нижняя часть: Адрес и комментарии */}
+                <SpatialWindow className="w-full lg:w-80 xl:w-96 p-5 sm:p-7 flex flex-col gap-5 shrink-0">
+                  <div className="space-y-2">
                     <label className="text-[10px] text-white/40 uppercase tracking-widest">{t.form_address}</label>
                     <div className="relative">
-                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
-                      <input value={clientAddress} onChange={e=>setClientAddress(e.target.value)} type="text" placeholder="Локация..." className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-12 pr-4 text-white outline-none focus:bg-white/10 transition-all text-sm font-light" />
+                      <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" size={15} />
+                      <input value={clientAddress} onChange={e=>setClientAddress(e.target.value)} type="text" placeholder="Локация..." className="w-full bg-white/5 border border-white/5 rounded-xl py-3 pl-10 pr-3 text-white outline-none focus:bg-white/10 transition-all text-xs sm:text-sm font-light" />
                     </div>
                   </div>
                   
-                  <div className="space-y-3 flex-1">
+                  <div className="space-y-2 flex-1 flex flex-col">
                     <label className="text-[10px] text-white/40 uppercase tracking-widest">{t.form_comment}</label>
-                    <div className="relative h-[150px] lg:h-[calc(100%-24px)]">
-                       <AlignLeft className="absolute left-4 top-5 text-white/30" size={18} />
-                       <textarea value={comment} onChange={e=>setComment(e.target.value)} placeholder="Детали..." className="w-full h-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-12 pr-4 text-white outline-none focus:bg-white/10 transition-all resize-none text-sm font-light" />
+                    <div className="relative flex-1 min-h-[90px] lg:min-h-[140px]">
+                       <AlignLeft className="absolute left-3.5 top-3.5 text-white/30" size={15} />
+                       <textarea value={comment} onChange={e=>setComment(e.target.value)} placeholder="Детали..." className="w-full h-full bg-white/5 border border-white/5 rounded-xl py-3 pl-10 pr-3 text-white outline-none focus:bg-white/10 transition-all resize-none text-xs sm:text-sm font-light" />
                     </div>
                   </div>
 
-                  <button onClick={handleSave} className="w-full bg-white text-black font-medium py-5 rounded-2xl hover:scale-[1.02] transition-transform duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-                    <Save size={18} /> {t.form_save}
+                  <button onClick={handleSave} className="w-full bg-white text-black font-medium py-3.5 sm:py-4 rounded-xl hover:scale-[1.01] transition-transform duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)] text-xs sm:text-sm shrink-0">
+                    <Save size={16} /> {t.form_save}
                   </button>
                 </SpatialWindow>
               </div>
@@ -682,30 +688,28 @@ export default function App() {
           </div>
         )}
 
-        {/* ПОЛНОЭКРАННЫЙ РЕЖИМ РИСОВАНИЯ (НАСТОЯЩИЙ ИНТЕРАКТИВНЫЙ ХОЛСТ ВО ВЕСЬ ЭКРАН) */}
+        {/* ПОЛНОЭКРАННЫЙ РЕЖИМ РИСОВАНИЯ (Безопасный отступ для портрета/альбома) */}
         {isFullscreenDraw && uploadedImage && (
-          <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-4 animate-in fade-in duration-300 select-none">
-            {/* Верхняя плавающая панель закрытия */}
-            <div className="absolute top-6 left-6 right-6 z-30 flex justify-between items-center pointer-events-none">
-              <span className="text-xs uppercase tracking-widest text-white/40 pointer-events-auto bg-black/60 px-4 py-2 rounded-full border border-white/10">
-                Полноэкранная разметка стены
+          <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-3 sm:p-6 animate-in fade-in duration-300 select-none overflow-hidden">
+            <div className="w-full max-w-6xl flex justify-between items-center mb-3 shrink-0">
+              <span className="text-[10px] sm:text-xs uppercase tracking-widest text-white/40 bg-black/60 px-3 py-1.5 rounded-full border border-white/10 truncate max-w-[200px] sm:max-w-none">
+                Полноэкранная разметка
               </span>
               <button 
                 onClick={() => setIsFullscreenDraw(false)}
-                className="pointer-events-auto px-6 py-3 rounded-full bg-white text-black font-medium flex items-center gap-2 hover:scale-105 transition-all shadow-2xl text-sm"
+                className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-white text-black font-medium flex items-center gap-1.5 hover:scale-105 transition-all shadow-2xl text-xs sm:text-sm shrink-0"
               >
-                <Check size={18} /> {t.btn_done_fullscreen}
+                <Check size={16} /> {t.btn_done_fullscreen}
               </button>
             </div>
 
-            {/* Зона картинки и холста */}
-            <div className="relative flex items-center justify-center w-full h-full max-w-6xl max-h-[85vh]">
-              <div className="relative inline-block max-w-full max-h-full">
+            <div className="flex-1 flex flex-col items-center justify-center w-full max-w-6xl max-h-[75vh] overflow-hidden my-auto">
+              <div className="relative inline-flex items-center justify-center max-w-full max-h-[65vh]">
                 <img 
                   ref={fsImageRef}
                   src={uploadedImage} 
                   alt="Во весь экран" 
-                  className="block max-w-full h-auto max-h-[80vh] rounded-2xl opacity-90 object-contain" 
+                  className="block max-w-full h-auto max-h-[65vh] rounded-2xl opacity-90 object-contain mx-auto" 
                   onLoad={handleFsImageLoad} 
                 />
                 <canvas
@@ -716,83 +720,50 @@ export default function App() {
                 />
               </div>
 
-              {/* Панель инструментов в полноэкранном режиме */}
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2 bg-white/10 backdrop-blur-3xl border border-white/10 p-2 rounded-[30px] shadow-2xl">
-                <button onClick={() => setTool('pen')} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${tool === 'pen' ? 'bg-white text-black' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}>
-                  <PenTool size={20} strokeWidth={1.5} />
-                </button>
-                <button onClick={() => setTool('eraser')} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${tool === 'eraser' ? 'bg-white text-black' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}>
-                  <Eraser size={20} strokeWidth={1.5} />
-                </button>
-                
-                <div className="w-8 h-px bg-white/10 mx-auto my-1"></div>
-                
-                <div className="relative w-12 h-12 flex items-center justify-center">
-                  <div className="w-8 h-8 rounded-full border-2 border-white/20 overflow-hidden relative shadow-inner">
-                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute -top-4 -left-4 w-16 h-16 cursor-pointer" />
-                  </div>
-                </div>
-                
-                <div className="w-8 h-px bg-white/10 mx-auto my-1"></div>
-                
-                <div className="flex flex-col items-center justify-center gap-3 py-2 w-12">
-                  <button onClick={() => setBrushSize(2)} className={`rounded-full transition-all duration-300 ${brushSize === 2 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-2 h-2`} />
-                  <button onClick={() => setBrushSize(4)} className={`rounded-full transition-all duration-300 ${brushSize === 4 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-3 h-3`} />
-                  <button onClick={() => setBrushSize(8)} className={`rounded-full transition-all duration-300 ${brushSize === 8 ? 'bg-white scale-125 shadow-[0_0_8px_white]' : 'bg-white/30 hover:bg-white/60'} w-[18px] h-[18px]`} />
-                </div>
-
-                <div className="w-8 h-px bg-white/10 mx-auto my-1"></div>
-
-                <button onClick={() => setPaths(paths.slice(0, -1))} className="w-12 h-12 rounded-full flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition-colors">
-                  <Undo size={20} strokeWidth={1.5} />
-                </button>
-                <button onClick={() => setPaths([])} className="w-12 h-12 rounded-full flex items-center justify-center text-red-400/70 hover:bg-red-500/20 hover:text-red-400 transition-colors">
-                  <Trash2 size={20} strokeWidth={1.5} />
-                </button>
-              </div>
+              {renderToolbar(true)}
             </div>
           </div>
         )}
 
         {/* БАЗА ПРОЕКТОВ */}
         {activePage === 'history' && (
-          <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+          <div className="animate-in fade-in duration-500">
             {history.length === 0 ? (
-              <div className="flex flex-col items-center justify-center mt-32">
-                <Grid size={48} className="text-white/20 mb-4" strokeWidth={1} />
-                <p className="text-sm font-light tracking-widest uppercase text-white/30">{t.hist_empty}</p>
+              <div className="flex flex-col items-center justify-center mt-24 sm:mt-32">
+                <Grid size={42} className="text-white/20 mb-3" strokeWidth={1} />
+                <p className="text-xs sm:text-sm font-light tracking-widest uppercase text-white/30">{t.hist_empty}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {history.map(item => (
                   <SpatialWindow 
                     key={item.id} 
                     className="cursor-pointer group hover:bg-white/[0.08] transition-colors duration-500 overflow-hidden flex flex-col"
                   >
                     <div onClick={() => openDetail(item)} className="flex-1 flex flex-col">
-                      <div className="aspect-video bg-black/50 relative overflow-hidden">
+                      <div className="aspect-video bg-black/55 relative overflow-hidden">
                         <img src={item.drawnImage} alt="Замер" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                        <div className="absolute bottom-3 left-4 flex items-center gap-2 text-white/90">
-                          <Clock size={14} className="text-white/50" />
-                          <span className="text-xs font-mono tracking-wider">{item.time}</span>
+                        <div className="absolute bottom-2.5 left-3.5 flex items-center gap-1.5 text-white/90">
+                          <Clock size={13} className="text-white/50" />
+                          <span className="text-[11px] font-mono tracking-wider">{item.time}</span>
                         </div>
                       </div>
                       
-                      <div className="p-5 flex-1 flex flex-col justify-between gap-4">
+                      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-3">
                         <div>
-                          <p className="text-xs text-white/40 uppercase tracking-widest mb-1">Мастер</p>
-                          <div className="flex items-center gap-2">
-                            <User size={14} className="text-white/70" />
-                            <span className="text-sm font-medium tracking-wide">{item.author}</span>
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest mb-0.5">Мастер</p>
+                          <div className="flex items-center gap-1.5">
+                            <User size={13} className="text-white/70" />
+                            <span className="text-xs sm:text-sm font-medium tracking-wide truncate">{item.author}</span>
                           </div>
                         </div>
                         
                         <div>
-                          <p className="text-xs text-white/40 uppercase tracking-widest mb-1">Объект</p>
-                          <div className="flex items-start gap-2">
-                            <MapPin size={14} className="text-white/70 shrink-0 mt-0.5" />
-                            <span className="text-sm font-light leading-snug line-clamp-2 text-white/80">{item.address || 'Адрес не указан'}</span>
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest mb-0.5">Объект</p>
+                          <div className="flex items-start gap-1.5">
+                            <MapPin size={13} className="text-white/70 shrink-0 mt-0.5" />
+                            <span className="text-xs sm:text-sm font-light leading-snug line-clamp-2 text-white/80">{item.address || 'Адрес не указан'}</span>
                           </div>
                         </div>
                       </div>
@@ -806,70 +777,70 @@ export default function App() {
 
         {/* КАРТОЧКА ПРОЕКТА */}
         {activePage === 'detail' && selectedRecord && (
-          <div className="animate-in slide-in-from-right-12 fade-in duration-500">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-              <button onClick={closeDetail} className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/10 transition-all text-sm tracking-wide">
-                <ChevronLeft size={18} /> {t.btn_back}
+          <div className="animate-in fade-in duration-500">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+              <button onClick={closeDetail} className="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/10 transition-all text-xs sm:text-sm tracking-wide">
+                <ChevronLeft size={16} /> {t.btn_back}
               </button>
               
-              <h2 className="text-lg font-light tracking-widest uppercase text-white/70 hidden sm:block">{t.detail_title}</h2>
+              <h2 className="text-xs sm:text-sm font-light tracking-widest uppercase text-white/70 hidden md:block">{t.detail_title}</h2>
               
-              <div className="flex gap-3">
-                <a href={selectedRecord.drawnImage} download={`Замер_${selectedRecord.time.replace(/[: ]/g, '_')}.png`} className="flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all text-sm font-medium">
-                  <Download size={18} /> <span className="hidden sm:inline">{t.btn_download}</span>
+              <div className="flex gap-2.5">
+                <a href={selectedRecord.drawnImage} download={`Замер_${selectedRecord.time.replace(/[: ]/g, '_')}.png`} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all text-xs sm:text-sm font-medium">
+                  <Download size={15} /> <span className="hidden sm:inline">{t.btn_download}</span>
                 </a>
                 
-                <button onClick={() => shareToWhatsApp(selectedRecord)} className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#25D366] text-black hover:scale-105 transition-all text-sm font-semibold shadow-[0_0_20px_rgba(37,211,102,0.3)]">
-                  <MessageCircle size={18} /> {t.btn_whatsapp}
+                <button onClick={() => shareToWhatsApp(selectedRecord)} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-[#25D366] text-black hover:scale-105 transition-all text-xs sm:text-sm font-semibold shadow-[0_0_20px_rgba(37,211,102,0.3)]">
+                  <MessageCircle size={15} /> {t.btn_whatsapp}
                 </button>
               </div>
             </div>
 
-            <SpatialWindow className="p-6 md:p-10 flex flex-col xl:flex-row gap-10 lg:gap-16">
-              <div className="w-full xl:w-2/3 bg-black/40 rounded-[24px] overflow-hidden flex items-center justify-center p-2 border border-white/5 shadow-inner">
-                <img src={selectedRecord.drawnImage} alt="Чертеж" className="max-w-full h-auto object-contain rounded-xl" />
+            <SpatialWindow className="p-5 sm:p-8 flex flex-col xl:flex-row gap-6 lg:gap-10">
+              <div className="w-full xl:w-2/3 bg-black/40 rounded-[20px] overflow-hidden flex items-center justify-center p-2 border border-white/5 shadow-inner">
+                <img src={selectedRecord.drawnImage} alt="Чертеж" className="max-w-full h-auto max-h-[60vh] object-contain rounded-xl" />
               </div>
 
-              <div className="w-full xl:w-1/3 space-y-10 flex flex-col">
-                <div className="space-y-8">
-                  <div className="bg-white/[0.03] p-6 rounded-3xl border border-white/5">
-                    <p className="text-[10px] text-white/40 uppercase tracking-widest mb-4">Информация о мастере</p>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center"><User size={20} /></div>
+              <div className="w-full xl:w-1/3 space-y-6 flex flex-col justify-between">
+                <div className="space-y-5">
+                  <div className="bg-white/[0.03] p-4 sm:p-5 rounded-2xl border border-white/5">
+                    <p className="text-[9px] text-white/40 uppercase tracking-widest mb-3">Информация о мастере</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center"><User size={18} /></div>
                       <div>
-                        <p className="text-xs text-white/50 mb-1">{t.hist_author}</p>
-                        <p className="font-medium text-lg tracking-wide">{selectedRecord.author}</p>
+                        <p className="text-[11px] text-white/50">Ответственный</p>
+                        <p className="font-medium text-sm sm:text-base tracking-wide">{selectedRecord.author}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-6 bg-white/[0.03] p-6 rounded-3xl border border-white/5">
+                  <div className="space-y-4 bg-white/[0.03] p-4 sm:p-5 rounded-2xl border border-white/5">
                     <div>
-                      <p className="text-[10px] text-white/40 uppercase tracking-widest mb-3">Время фиксации</p>
-                      <div className="flex items-center gap-3">
-                        <Clock size={18} className="text-white/50" />
-                        <span className="font-mono text-white/90">{selectedRecord.time}</span>
+                      <p className="text-[9px] text-white/40 uppercase tracking-widest mb-2">Время фиксации</p>
+                      <div className="flex items-center gap-2.5">
+                        <Clock size={15} className="text-white/50" />
+                        <span className="font-mono text-xs sm:text-sm text-white/90">{selectedRecord.time}</span>
                       </div>
                     </div>
                     
                     <div className="w-full h-px bg-white/5"></div>
                     
                     <div>
-                      <p className="text-[10px] text-white/40 uppercase tracking-widest mb-3">Локация</p>
-                      <div className="flex items-start gap-3">
-                        <MapPin size={18} className="text-white/50 shrink-0 mt-0.5" />
-                        <span className="font-light leading-relaxed text-white/90">{selectedRecord.address || 'Объект без адреса'}</span>
+                      <p className="text-[9px] text-white/40 uppercase tracking-widest mb-2">Локация</p>
+                      <div className="flex items-start gap-2.5">
+                        <MapPin size={15} className="text-white/50 shrink-0 mt-0.5" />
+                        <span className="font-light leading-relaxed text-xs sm:text-sm text-white/90">{selectedRecord.address || 'Объект без адреса'}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {selectedRecord.comment && (
-                  <div className="bg-white/[0.03] p-6 rounded-3xl border border-white/5 flex-1">
-                    <p className="text-[10px] text-white/40 uppercase tracking-widest mb-4">{t.form_comment}</p>
-                    <div className="flex items-start gap-3">
-                      <AlignLeft size={18} className="text-white/50 shrink-0 mt-1" />
-                      <p className="font-light text-white/70 leading-loose text-sm whitespace-pre-wrap">{selectedRecord.comment}</p>
+                  <div className="bg-white/[0.03] p-4 sm:p-5 rounded-2xl border border-white/5">
+                    <p className="text-[9px] text-white/40 uppercase tracking-widest mb-3">{t.form_comment}</p>
+                    <div className="flex items-start gap-2.5">
+                      <AlignLeft size={15} className="text-white/50 shrink-0 mt-0.5" />
+                      <p className="font-light text-white/70 leading-relaxed text-xs sm:text-sm whitespace-pre-wrap">{selectedRecord.comment}</p>
                     </div>
                   </div>
                 )}
