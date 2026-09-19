@@ -2,16 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Camera, Save, Undo, Eraser, Trash2, 
   PenTool, User, MapPin, LogOut, Download, 
-  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, Check, X
+  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, Check, X, Loader2
 } from 'lucide-react';
+
+// Реальные ключи EmailJS
+const EMAILJS_SERVICE_ID = 'service_2a1dntp';
+const EMAILJS_TEMPLATE_ID = 'template_m0v01p4';
+const EMAILJS_PUBLIC_KEY = 'YTs6RNUvAjy1zicxk';
 
 const translations = {
   ru: {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
     auth_title: "Авторизация доступа", auth_tab_login: "Вход", auth_tab_reg: "Регистрация",
     auth_email: "Корпоративная почта", auth_pass: "Пароль", auth_name: "Имя / Позывной мастера",
-    auth_btn_login: "Войти в систему", auth_btn_reg: "Получить код на почту",
-    auth_verify_title: "Подтверждение почты", auth_verify_desc: "Введите 6-значный код, отправленный на вашу почту",
+    auth_btn_login: "Войти в систему", auth_btn_reg: "Отправить код на почту",
+    auth_verify_title: "Подтверждение почты", auth_verify_desc: "Введите 6-значный код из письма, отправленного на почту",
     auth_verify_btn: "Подтвердить и завершить", auth_resend: "Отправить код повторно",
     nav_new: "Новый замер", nav_history: "База проектов",
     form_address: "Адрес объекта", form_comment: "Технические детали", form_save: "Сохранить проект",
@@ -24,8 +29,8 @@ const translations = {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
     auth_title: "Қолжетімділік автосаудасы", auth_tab_login: "Кіру", auth_tab_reg: "Тіркелу",
     auth_email: "Корпоративтік пошта", auth_pass: "Құпия сөз", auth_name: "Аты / Шебер аты",
-    auth_btn_login: "Жүйеге кіру", auth_btn_reg: "Поштаға код алу",
-    auth_verify_title: "Поштаны растау", auth_verify_desc: "Поштаңызға жіберілген 6 таңбалы кодты енгізіңіз",
+    auth_btn_login: "Жүйеге кіру", auth_btn_reg: "Поштаға код жіберу",
+    auth_verify_title: "Поштаны растау", auth_verify_desc: "Поштаға келген 6 таңбалы кодты енгізіңіз",
     auth_verify_btn: "Растау және аяқтау", auth_resend: "Кодты қайта жіберу",
     nav_new: "Жаңа өлшем", nav_history: "Жобалар базасы",
     form_address: "Нысан мекенжайы", form_comment: "Техникалық бөлшектер", form_save: "Жобаны сақтау",
@@ -147,10 +152,10 @@ export default function App() {
   const [authPass, setAuthPass] = useState('');
   const [authName, setAuthName] = useState('');
   const [authError, setAuthError] = useState('');
+  const [isSendingMail, setIsSendingMail] = useState(false);
   
   const [pendingUser, setPendingUser] = useState(null);
   const [verificationInput, setVerificationInput] = useState('');
-  const [demoCodeHint, setDemoCodeHint] = useState('');
 
   const [activePage, setActivePage] = useState('new'); 
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -183,7 +188,27 @@ export default function App() {
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
-  const handleAuthSubmit = (e) => {
+  const sendEmailViaEmailJS = async (email, name, code) => {
+    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service_id: EMAILJS_SERVICE_ID,
+        template_id: EMAILJS_TEMPLATE_ID,
+        user_id: EMAILJS_PUBLIC_KEY,
+        template_params: {
+          to_email: email,
+          to_name: name,
+          code: code
+        }
+      })
+    });
+    if (!response.ok) {
+      throw new Error('Ошибка отправки почты');
+    }
+  };
+
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
     if (!authEmail.trim() || !authPass.trim()) {
@@ -204,11 +229,20 @@ export default function App() {
         return;
       }
 
+      setIsSendingMail(true);
       const code = generateSixDigitCode();
       const pendingData = { email: authEmail.trim(), pass: authPass.trim(), name: authName.trim(), code };
-      setPendingUser(pendingData);
-      setDemoCodeHint(code);
-      setAuthStep('verify');
+      
+      try {
+        await sendEmailViaEmailJS(authEmail.trim(), authName.trim(), code);
+        setPendingUser(pendingData);
+        setAuthStep('verify');
+      } catch (err) {
+        setAuthError('Не удалось отправить письмо. Проверьте EmailJS ключи.');
+        console.error(err);
+      } finally {
+        setIsSendingMail(false);
+      }
     } else {
       const found = usersStore.find(u => u.email === authEmail.trim() && u.pass === authPass.trim());
       if (!found && !(authEmail.trim() === 'admin@tvzone.kz' && authPass.trim() === 'admin123')) {
@@ -542,7 +576,8 @@ export default function App() {
                   <p className="text-red-400 text-xs text-center font-light">{authError}</p>
                 )}
 
-                <button type="submit" className="w-full bg-white text-black rounded-2xl py-3.5 font-medium hover:scale-[1.02] transition-transform duration-300 mt-4 shadow-[0_0_20px_rgba(255,255,255,0.2)] text-sm">
+                <button type="submit" disabled={isSendingMail} className="w-full bg-white text-black rounded-2xl py-3.5 font-medium hover:scale-[1.02] transition-transform duration-300 mt-4 shadow-[0_0_20px_rgba(255,255,255,0.2)] text-sm flex items-center justify-center gap-2">
+                  {isSendingMail && <Loader2 size={16} className="animate-spin" />}
                   {authMode === 'register' ? t.auth_btn_reg : t.auth_btn_login}
                 </button>
               </form>
@@ -557,10 +592,6 @@ export default function App() {
                 <h2 className="text-xl font-medium tracking-wide text-white mb-2">{t.auth_verify_title}</h2>
                 <p className="text-white/50 text-xs font-light leading-relaxed">{t.auth_verify_desc}</p>
                 <p className="text-xs text-white/30 mt-1 font-mono">{pendingUser?.email}</p>
-              </div>
-
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-[11px] text-white/70 font-mono">
-                📧 [Эмуляция почты]: Код подтверждения — <strong className="text-white text-sm">{demoCodeHint}</strong>
               </div>
 
               <input 
