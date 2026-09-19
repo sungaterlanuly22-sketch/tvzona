@@ -9,7 +9,7 @@ import {
 // 1. НАСТРОЙКИ ОБЛАКА FIREBASE
 // ==========================================
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, onValue, set, get } from 'firebase/database';
+import { getDatabase, ref, onValue, set, get, remove } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: "AIzaSyACobwO_XL-QfUWRidjqL1S7O4neiFDYug",
@@ -22,7 +22,6 @@ const firebaseConfig = {
   measurementId: "G-9BN3DEZ82Y"
 };
 
-// Запуск облака
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
@@ -46,7 +45,7 @@ const translations = {
     hist_author: "Ответственный:", hist_empty: "Пространство проектов пусто", detail_title: "Карточка проекта",
     btn_download: "Сохранить", btn_whatsapp: "В WhatsApp", btn_back: "Назад к списку",
     btn_camera: "Сделать фото", btn_gallery: "Из галереи", btn_done_fullscreen: "Готово / Закрыть",
-    btn_close_photo: "Закрыть фото"
+    btn_close_photo: "Закрыть фото", btn_delete: "Удалить", confirm_delete: "Удалить этот замер навсегда?"
   },
   kz: {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
@@ -60,7 +59,7 @@ const translations = {
     hist_author: "Жауапты:", hist_empty: "Жобалар кеңістігі бос", detail_title: "Жоба картасы",
     btn_download: "Сақтау", btn_whatsapp: "WhatsApp-қа", btn_back: "Тізімге қайту",
     btn_camera: "Суретке түсіру", btn_gallery: "Галереядан", btn_done_fullscreen: "Дайын / Жабу",
-    btn_close_photo: "Суретті жабу"
+    btn_close_photo: "Суретті жабу", btn_delete: "Жою", confirm_delete: "Бұл өлшемді жою керек пе?"
   },
   en: {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
@@ -74,7 +73,7 @@ const translations = {
     hist_author: "Assigned to:", hist_empty: "Project space is empty", detail_title: "Project Card",
     btn_download: "Download", btn_whatsapp: "WhatsApp", btn_back: "Back to list",
     btn_camera: "Take Photo", btn_gallery: "From Gallery", btn_done_fullscreen: "Done / Close",
-    btn_close_photo: "Close photo"
+    btn_close_photo: "Close photo", btn_delete: "Delete", confirm_delete: "Delete this permanently?"
   }
 };
 
@@ -141,6 +140,9 @@ export default function App() {
   const [history, setHistory] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [isFullscreenDraw, setIsFullscreenDraw] = useState(false);
+  
+  // Новое состояние для просмотра готового фото на весь экран
+  const [viewFullscreenImage, setViewFullscreenImage] = useState(null);
 
   const canvasRef = useRef(null);
   const fsCanvasRef = useRef(null);
@@ -393,6 +395,20 @@ export default function App() {
         alert('Ошибка при сохранении в облако. Проверьте настройки базы данных Firebase.');
       }
     };
+  };
+
+  // Новая функция удаления
+  const handleDeleteProject = async (record) => {
+    if (window.confirm(t.confirm_delete)) {
+      try {
+        await remove(ref(db, 'projects/' + record.id));
+        if (selectedRecord?.id === record.id) {
+          closeDetail();
+        }
+      } catch (err) {
+        console.error('Ошибка удаления:', err);
+      }
+    }
   };
 
   const shareToWhatsApp = async (record) => {
@@ -704,7 +720,14 @@ export default function App() {
                 <ChevronLeft size={16} /> {t.btn_back}
               </button>
               <h2 className="text-xs sm:text-sm font-light tracking-widest uppercase text-white/70 hidden md:block">{t.detail_title}</h2>
-              <div className="flex gap-2.5">
+              <div className="flex flex-wrap gap-2.5">
+                {/* Кнопка удаления (показывается только автору проекта) */}
+                {currentUser?.name === selectedRecord.author && (
+                  <button onClick={() => handleDeleteProject(selectedRecord)} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all text-xs sm:text-sm font-medium border border-red-500/20">
+                    <Trash2 size={15} /> <span className="hidden sm:inline">{t.btn_delete}</span>
+                  </button>
+                )}
+                
                 <a href={selectedRecord.drawnImage} download={`Замер_${selectedRecord.time.replace(/[: ]/g, '_')}.jpg`} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all text-xs sm:text-sm font-medium">
                   <Download size={15} /> <span className="hidden sm:inline">{t.btn_download}</span>
                 </a>
@@ -715,9 +738,18 @@ export default function App() {
             </div>
 
             <SpatialWindow className="p-5 sm:p-8 flex flex-col xl:flex-row gap-6 lg:gap-10">
-              <div className="w-full xl:w-2/3 bg-black/40 rounded-[20px] overflow-hidden flex items-center justify-center p-2 border border-white/5 shadow-inner">
-                <img src={selectedRecord.drawnImage} alt="Чертеж" className="max-w-full h-auto max-h-[60vh] object-contain rounded-xl" />
+              {/* Блок картинки с кликом для полноэкранного просмотра */}
+              <div 
+                className="w-full xl:w-2/3 bg-black/40 rounded-[20px] overflow-hidden flex items-center justify-center p-2 border border-white/5 shadow-inner relative group cursor-pointer"
+                onClick={() => setViewFullscreenImage(selectedRecord.drawnImage)}
+                title="Нажмите, чтобы открыть на весь экран"
+              >
+                <img src={selectedRecord.drawnImage} alt="Чертеж" className="max-w-full h-auto max-h-[60vh] object-contain rounded-xl group-hover:scale-[1.01] transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
+                  <Maximize2 className="text-white w-10 h-10 opacity-70" />
+                </div>
               </div>
+              
               <div className="w-full xl:w-1/3 space-y-6 flex flex-col justify-between">
                 <div className="space-y-5">
                   <div className="bg-white/[0.03] p-4 sm:p-5 rounded-2xl border border-white/5">
@@ -759,6 +791,19 @@ export default function App() {
                 )}
               </div>
             </SpatialWindow>
+          </div>
+        )}
+
+        {/* Окно для просмотра готового фото на весь экран */}
+        {viewFullscreenImage && (
+          <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
+            <button 
+              onClick={() => setViewFullscreenImage(null)} 
+              className="absolute top-5 right-5 sm:top-8 sm:right-8 w-10 h-10 sm:w-12 sm:h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-all z-10"
+            >
+              <X size={24} />
+            </button>
+            <img src={viewFullscreenImage} alt="Во весь экран" className="max-w-full max-h-[90vh] object-contain rounded-2xl" />
           </div>
         )}
       </main>
