@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Camera, Save, Undo, Eraser, Trash2, 
   PenTool, User, MapPin, LogOut, Download, 
-  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Upload, Database, Lock, Mail, Key
+  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Upload, Database, Lock, Mail, Key, ShieldCheck
 } from 'lucide-react';
 
 const translations = {
@@ -10,7 +10,9 @@ const translations = {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
     auth_title: "Авторизация доступа", auth_tab_login: "Вход", auth_tab_reg: "Регистрация",
     auth_email: "Корпоративная почта", auth_pass: "Пароль", auth_name: "Имя / Позывной мастера",
-    auth_btn_login: "Войти в систему", auth_btn_reg: "Зарегистрироваться",
+    auth_btn_login: "Войти в систему", auth_btn_reg: "Получить код на почту",
+    auth_verify_title: "Подтверждение почты", auth_verify_desc: "Введите 6-значный код, отправленный на вашу почту",
+    auth_verify_btn: "Подтвердить и завершить", auth_resend: "Отправить код повторно",
     nav_new: "Новый замер", nav_history: "База проектов",
     form_address: "Адрес объекта", form_comment: "Технические детали", form_save: "Сохранить проект",
     hist_author: "Ответственный:", hist_empty: "Пространство проектов пусто", detail_title: "Карточка проекта",
@@ -22,7 +24,9 @@ const translations = {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
     auth_title: "Қолжетімділік автосаудасы", auth_tab_login: "Кіру", auth_tab_reg: "Тіркелу",
     auth_email: "Корпоративтік пошта", auth_pass: "Құпия сөз", auth_name: "Аты / Шебер аты",
-    auth_btn_login: "Жүйеге кіру", auth_btn_reg: "Тіркелу",
+    auth_btn_login: "Жүйеге кіру", auth_btn_reg: "Поштаға код алу",
+    auth_verify_title: "Поштаны растау", auth_verify_desc: "Поштаңызға жіберілген 6 таңбалы кодты енгізіңіз",
+    auth_verify_btn: "Растау және аяқтау", auth_resend: "Кодты қайта жіберу",
     nav_new: "Жаңа өлшем", nav_history: "Жобалар базасы",
     form_address: "Нысан мекенжайы", form_comment: "Техникалық бөлшектер", form_save: "Жобаны сақтау",
     hist_author: "Жауапты:", hist_empty: "Жобалар кеңістігі бос", detail_title: "Жоба картасы",
@@ -34,7 +38,9 @@ const translations = {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
     auth_title: "Access Authorization", auth_tab_login: "Login", auth_tab_reg: "Register",
     auth_email: "Corporate Email", auth_pass: "Password", auth_name: "Master Name",
-    auth_btn_login: "Enter System", auth_btn_reg: "Register",
+    auth_btn_login: "Enter System", auth_btn_reg: "Send Code to Email",
+    auth_verify_title: "Email Verification", auth_verify_desc: "Enter the 6-digit code sent to your email",
+    auth_verify_btn: "Verify & Complete", auth_resend: "Resend Code",
     nav_new: "New Measurement", nav_history: "Project Database",
     form_address: "Object Address", form_comment: "Technical Details", form_save: "Save Project",
     hist_author: "Assigned to:", hist_empty: "Project space is empty", detail_title: "Project Card",
@@ -50,7 +56,7 @@ const SpatialWindow = ({ children, className = '' }) => (
   </div>
 );
 
-// IndexedDB утилита для вечного хранения тяжелой базы без лимитов 5MB
+// IndexedDB утилита
 const initDB = () => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('TVZonePersistentDB', 1);
@@ -95,7 +101,6 @@ export default function App() {
   const [lang, setLang] = useState('ru');
   const t = translations[lang];
   
-  // Строгая авторизация: проверка текущего пользователя
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('tvzone_auth_user');
@@ -106,10 +111,17 @@ export default function App() {
   });
 
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [authStep, setAuthStep] = useState('form'); // 'form' | 'verify'
+  
   const [authEmail, setAuthEmail] = useState('');
   const [authPass, setAuthPass] = useState('');
   const [authName, setAuthName] = useState('');
   const [authError, setAuthError] = useState('');
+  
+  // Данные для верификации кода
+  const [pendingUser, setPendingUser] = useState(null);
+  const [verificationInput, setVerificationInput] = useState('');
+  const [demoCodeHint, setDemoCodeHint] = useState('');
 
   const [activePage, setActivePage] = useState('new'); 
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -127,14 +139,17 @@ export default function App() {
   const [paths, setPaths] = useState([]);
   const [currentPath, setCurrentPath] = useState(null);
 
-  // Загружаем проекты из IndexedDB при старте
   useEffect(() => {
     if (currentUser) {
       getProjectsFromIDB().then(data => setHistory(data));
     }
   }, [currentUser]);
 
-  // Обработка входа / регистрации
+  // Генерация 6-значного кода
+  const generateSixDigitCode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
   const handleAuthSubmit = (e) => {
     e.preventDefault();
     setAuthError('');
@@ -155,16 +170,16 @@ export default function App() {
         setAuthError('Пользователь с такой почтой уже существует');
         return;
       }
-      const newUser = { email: authEmail.trim(), pass: authPass.trim(), name: authName.trim() };
-      usersStore.push(newUser);
-      localStorage.setItem('tvzone_users_db', JSON.stringify(usersStore));
-      
-      setCurrentUser(newUser);
-      localStorage.setItem('tvzone_auth_user', JSON.stringify(newUser));
+
+      // Генерация 6-значного кода подтверждения
+      const code = generateSixDigitCode();
+      const pendingData = { email: authEmail.trim(), pass: authPass.trim(), name: authName.trim(), code };
+      setPendingUser(pendingData);
+      setDemoCodeHint(code); // Подсказка для проверки (симуляция письма на почту)
+      setAuthStep('verify');
     } else {
       // Login check
       const found = usersStore.find(u => u.email === authEmail.trim() && u.pass === authPass.trim());
-      // Запасной дефолтный вход для быстрого старта, если базы нет: admin/admin или совпадение
       if (!found && !(authEmail.trim() === 'admin@tvzone.kz' && authPass.trim() === 'admin123')) {
         setAuthError('Неверная почта или пароль');
         return;
@@ -173,6 +188,27 @@ export default function App() {
       setCurrentUser(loggedUser);
       localStorage.setItem('tvzone_auth_user', JSON.stringify(loggedUser));
     }
+  };
+
+  // Проверка 6-значного кода при регистрации
+  const handleVerifyCode = (e) => {
+    e.preventDefault();
+    setAuthError('');
+    if (verificationInput.trim() !== pendingUser.code) {
+      setAuthError('Неверный 6-значный код подтверждения');
+      return;
+    }
+
+    const usersStore = JSON.parse(localStorage.getItem('tvzone_users_db') || '[]');
+    const newUser = { email: pendingUser.email, pass: pendingUser.pass, name: pendingUser.name };
+    usersStore.push(newUser);
+    localStorage.setItem('tvzone_users_db', JSON.stringify(usersStore));
+
+    setCurrentUser(newUser);
+    localStorage.setItem('tvzone_auth_user', JSON.stringify(newUser));
+    setPendingUser(null);
+    setVerificationInput('');
+    setAuthStep('form');
   };
 
   const handleLogout = () => {
@@ -357,14 +393,13 @@ export default function App() {
     setActivePage('history');
   };
 
-  // ЭКРАН СТРОГОЙ АВТОРИЗАЦИИ (БЕЗ ВХОДА НИКТО НЕ ПРОЙДЕТ)
+  // ЭКРАН СТРОГОЙ АВТОРИЗАЦИИ / ВЕРИФИКАЦИИ КОДА
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden font-sans">
         <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-indigo-600/20 rounded-full blur-[150px] pointer-events-none mix-blend-screen animate-pulse duration-[4000ms]"></div>
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen animate-pulse duration-[5000ms]"></div>
         
-        {/* Языковой переключатель на экране входа */}
         <div className="fixed top-6 right-6 z-50 flex gap-1 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-1.5 shadow-lg">
           {['ru', 'kz', 'en'].map(l => (
             <button 
@@ -377,83 +412,126 @@ export default function App() {
         </div>
 
         <SpatialWindow className="w-full max-w-md p-10 animate-in fade-in zoom-in-95 duration-700 relative z-10">
-          <div className="text-center mb-8">
-            <Lock className="w-12 h-12 text-white/80 mx-auto mb-4 opacity-80" strokeWidth={1} />
-            <h1 className="text-2xl font-medium tracking-wide text-white mb-1">{t.sys_name}</h1>
-            <p className="text-white/40 text-xs tracking-widest uppercase">{t.auth_title}</p>
-          </div>
-
-          {/* Табы Вход / Регистрация */}
-          <div className="flex bg-white/5 p-1 rounded-2xl mb-6 border border-white/5">
-            <button 
-              type="button" 
-              onClick={() => { setAuthMode('login'); setAuthError(''); }}
-              className={`flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all ${authMode === 'login' ? 'bg-white/20 text-white font-medium' : 'text-white/40 hover:text-white'}`}
-            >
-              {t.auth_tab_login}
-            </button>
-            <button 
-              type="button" 
-              onClick={() => { setAuthMode('register'); setAuthError(''); }}
-              className={`flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all ${authMode === 'register' ? 'bg-white/20 text-white font-medium' : 'text-white/40 hover:text-white'}`}
-            >
-              {t.auth_tab_reg}
-            </button>
-          </div>
-
-          <form onSubmit={handleAuthSubmit} className="space-y-4">
-            {authMode === 'register' && (
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
-                <input 
-                  type="text" 
-                  value={authName}
-                  onChange={e => setAuthName(e.target.value)}
-                  placeholder={t.auth_name} 
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-4 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
-                />
+          {authStep === 'form' ? (
+            <>
+              <div className="text-center mb-8">
+                <Lock className="w-12 h-12 text-white/80 mx-auto mb-4 opacity-80" strokeWidth={1} />
+                <h1 className="text-2xl font-medium tracking-wide text-white mb-1">{t.sys_name}</h1>
+                <p className="text-white/40 text-xs tracking-widest uppercase">{t.auth_title}</p>
               </div>
-            )}
-            
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
+
+              <div className="flex bg-white/5 p-1 rounded-2xl mb-6 border border-white/5">
+                <button 
+                  type="button" 
+                  onClick={() => { setAuthMode('login'); setAuthError(''); }}
+                  className={`flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all ${authMode === 'login' ? 'bg-white/20 text-white font-medium' : 'text-white/40 hover:text-white'}`}
+                >
+                  {t.auth_tab_login}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => { setAuthMode('register'); setAuthError(''); }}
+                  className={`flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all ${authMode === 'register' ? 'bg-white/20 text-white font-medium' : 'text-white/40 hover:text-white'}`}
+                >
+                  {t.auth_tab_reg}
+                </button>
+              </div>
+
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
+                {authMode === 'register' && (
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
+                    <input 
+                      type="text" 
+                      value={authName}
+                      onChange={e => setAuthName(e.target.value)}
+                      placeholder={t.auth_name} 
+                      className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-4 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
+                    />
+                  </div>
+                )}
+                
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
+                  <input 
+                    type="email" 
+                    value={authEmail}
+                    onChange={e => setAuthEmail(e.target.value)}
+                    placeholder={t.auth_email} 
+                    className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-4 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
+                  />
+                </div>
+
+                <div className="relative">
+                  <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
+                  <input 
+                    type="password" 
+                    value={authPass}
+                    onChange={e => setAuthPass(e.target.value)}
+                    placeholder={t.auth_pass} 
+                    className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-4 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
+                  />
+                </div>
+
+                {authError && (
+                  <p className="text-red-400 text-xs text-center font-light">{authError}</p>
+                )}
+
+                <button type="submit" className="w-full bg-white text-black rounded-2xl py-4 font-medium hover:scale-[1.02] transition-transform duration-300 mt-4 shadow-[0_0_20px_rgba(255,255,255,0.2)] text-sm">
+                  {authMode === 'register' ? t.auth_btn_reg : t.auth_btn_login}
+                </button>
+              </form>
+              {authMode === 'login' && (
+                <p className="text-center text-[11px] text-white/30 mt-4">Тестовый вход: admin@tvzone.kz / admin123</p>
+              )}
+            </>
+          ) : (
+            /* ЭКРАН ВВОДА 6-ЗНАЧНОГО КОДА ПОДТВЕРЖДЕНИЯ ПОЧТЫ */
+            <form onSubmit={handleVerifyCode} className="space-y-6 text-center animate-in fade-in duration-300">
+              <div className="text-center mb-6">
+                <ShieldCheck className="w-12 h-12 text-[#25D366] mx-auto mb-4 opacity-90" strokeWidth={1} />
+                <h2 className="text-xl font-medium tracking-wide text-white mb-2">{t.auth_verify_title}</h2>
+                <p className="text-white/50 text-xs font-light leading-relaxed">{t.auth_verify_desc}</p>
+                <p className="text-xs text-white/30 mt-1 font-mono">{pendingUser?.email}</p>
+              </div>
+
+              {/* Демо-подсказка кода для быстрой проверки на планшете */}
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-[11px] text-white/70 font-mono">
+                📧 [Эмуляция почты]: Код подтверждения — <strong className="text-white text-sm">{demoCodeHint}</strong>
+              </div>
+
               <input 
-                type="email" 
-                value={authEmail}
-                onChange={e => setAuthEmail(e.target.value)}
-                placeholder={t.auth_email} 
-                className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-4 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
+                type="text" 
+                maxLength={6}
+                value={verificationInput}
+                onChange={e => setVerificationInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000" 
+                className="w-full bg-white/[0.05] border border-white/20 rounded-2xl py-4 text-white text-center text-2xl font-mono tracking-[0.5em] outline-none focus:bg-white/[0.1] transition-all" 
               />
-            </div>
 
-            <div className="relative">
-              <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
-              <input 
-                type="password" 
-                value={authPass}
-                onChange={e => setAuthPass(e.target.value)}
-                placeholder={t.auth_pass} 
-                className="w-full bg-white/[0.05] border border-white/10 rounded-2xl py-4 pl-11 pr-5 text-white outline-none focus:bg-white/[0.1] transition-all placeholder:text-white/30 font-light text-sm" 
-              />
-            </div>
+              {authError && (
+                <p className="text-red-400 text-xs font-light">{authError}</p>
+              )}
 
-            {authError && (
-              <p className="text-red-400 text-xs text-center font-light">{authError}</p>
-            )}
+              <button type="submit" className="w-full bg-white text-black rounded-2xl py-4 font-medium hover:scale-[1.02] transition-transform duration-300 shadow-[0_0_20px_rgba(255,255,255,0.2)] text-sm">
+                {t.auth_verify_btn}
+              </button>
 
-            <button type="submit" className="w-full bg-white text-black rounded-2xl py-4 font-medium hover:scale-[1.02] transition-transform duration-300 mt-4 shadow-[0_0_20px_rgba(255,255,255,0.2)] text-sm">
-              {authMode === 'register' ? t.auth_btn_reg : t.auth_btn_login}
-            </button>
-          </form>
-          {authMode === 'login' && (
-            <p className="text-center text-[11px] text-white/30 mt-4">Тестовый вход: admin@tvzone.kz / admin123</p>
+              <button 
+                type="button" 
+                onClick={() => setAuthStep('form')}
+                className="text-xs text-white/40 hover:text-white transition-colors"
+              >
+                ← Назад к форме регистрации
+              </button>
+            </form>
           )}
         </SpatialWindow>
       </div>
     );
   }
 
-  // ОСНОВНОЙ ИНТЕРФЕЙС (ДОСТУПЕН ТОЛЬКО АВТОРИЗОВАННЫМ)
+  // ОСНОВНОЙ ИНТЕРФЕЙС
   return (
     <div className="min-h-screen bg-black text-white font-sans flex flex-col relative overflow-hidden">
       
