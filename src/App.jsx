@@ -14,6 +14,7 @@ import { getDatabase, ref, onValue, set, get } from 'firebase/database';
 const firebaseConfig = {
   apiKey: "AIzaSyACobwO_XL-QfUWRidjqL1S7O4neiFDYug",
   authDomain: "tvzone-fd220.firebaseapp.com",
+  databaseURL: "https://tvzone-fd220-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "tvzone-fd220",
   storageBucket: "tvzone-fd220.firebasestorage.app",
   messagingSenderId: "612832778880",
