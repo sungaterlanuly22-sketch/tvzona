@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Camera, Save, Undo, Eraser, Trash2, 
   PenTool, User, MapPin, LogOut, Download, 
-  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon
+  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Upload, Database
 } from 'lucide-react';
 
 const translations = {
@@ -13,7 +13,8 @@ const translations = {
     form_address: "Адрес объекта", form_comment: "Технические детали", form_save: "Сохранить проект",
     hist_author: "Ответственный:", hist_empty: "Пространство проектов пусто", detail_title: "Карточка проекта",
     btn_download: "Сохранить", btn_whatsapp: "В WhatsApp", btn_back: "Назад к списку",
-    btn_camera: "Сделать фото", btn_gallery: "Из галереи"
+    btn_camera: "Сделать фото", btn_gallery: "Из галереи",
+    sync_export: "Экспорт базы", sync_import: "Импорт базы"
   },
   kz: {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
@@ -22,7 +23,8 @@ const translations = {
     form_address: "Нысан мекенжайы", form_comment: "Техникалық бөлшектер", form_save: "Жобаны сақтау",
     hist_author: "Жауапты:", hist_empty: "Жобалар кеңістігі бос", detail_title: "Жоба картасы",
     btn_download: "Сақтау", btn_whatsapp: "WhatsApp-қа", btn_back: "Тізімге қайту",
-    btn_camera: "Суретке түсіру", btn_gallery: "Галереядан"
+    btn_camera: "Суретке түсіру", btn_gallery: "Галереядан",
+    sync_export: "Базаны экспорттау", sync_import: "Базаны импорттау"
   },
   en: {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
@@ -31,7 +33,8 @@ const translations = {
     form_address: "Object Address", form_comment: "Technical Details", form_save: "Save Project",
     hist_author: "Assigned to:", hist_empty: "Project space is empty", detail_title: "Project Card",
     btn_download: "Download", btn_whatsapp: "WhatsApp", btn_back: "Back to list",
-    btn_camera: "Take Photo", btn_gallery: "From Gallery"
+    btn_camera: "Take Photo", btn_gallery: "From Gallery",
+    sync_export: "Export DB", sync_import: "Import DB"
   }
 };
 
@@ -52,7 +55,25 @@ export default function App() {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [clientAddress, setClientAddress] = useState('');
   const [comment, setComment] = useState('');
-  const [history, setHistory] = useState([]);
+  
+  // Жесткая персистентность через localStorage (ничего не исчезает)
+  const [history, setHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tvzone_persistent_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('tvzone_persistent_history', JSON.stringify(history));
+    } catch (e) {
+      console.error('Ошибка сохранения в localStorage', e);
+    }
+  }, [history]);
+
   const [selectedRecord, setSelectedRecord] = useState(null); 
 
   const canvasRef = useRef(null);
@@ -171,6 +192,35 @@ export default function App() {
     };
   };
 
+  // Экспорт/импорт базы данных (для синхронизации между устройствами)
+  const exportDatabase = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(history, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `tvzone_backup_${Date.now()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const importDatabase = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target.result);
+        if (Array.isArray(imported)) {
+          setHistory(imported);
+          alert('База успешно импортирована!');
+        }
+      } catch (err) {
+        alert('Ошибка чтения файла базы данных.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const shareToWhatsApp = async (record) => {
     const textMessage = `🛠 *Новый замер: TVZONE*\n\n📍 *Адрес:* ${record.address || 'Не указан'}\n👷 *Мастер:* ${record.author}\n🕒 *Время:* ${record.time}\n\n💬 *Детали проекта:*\n${record.comment || 'Нет комментариев'}`;
     
@@ -180,14 +230,12 @@ export default function App() {
       const safeTimeName = record.time.replace(/[: ]/g, '_');
       const file = new File([blob], `Zamer_${safeTimeName}.png`, { type: 'image/png' });
 
-      // Если поддерживается шаринг файлов (мобильные устройства)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           text: textMessage,
           files: [file]
         });
       } else {
-        // Для ПК: автоматически скачиваем картинку и открываем WhatsApp Web с текстом
         const a = document.createElement('a');
         a.href = record.drawnImage;
         a.download = `Zamer_${safeTimeName}.png`;
@@ -197,7 +245,7 @@ export default function App() {
         window.open(waLink, '_blank');
       }
     } catch (error) {
-      console.log('Отправка отменена пользователем или произошла ошибка', error);
+      console.log('Отправка отменена', error);
     }
   };
 
@@ -268,7 +316,18 @@ export default function App() {
             </button>
           </div>
 
-          <div className="pointer-events-auto flex gap-3 sm:gap-4">
+          <div className="pointer-events-auto flex gap-3 sm:gap-4 items-center">
+            {/* Синхронизация (Экспорт/Импорт) */}
+            <div className="hidden lg:flex items-center gap-1 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-1.5 shadow-lg">
+              <button onClick={exportDatabase} className="px-3 py-1.5 text-xs text-white/60 hover:text-white flex items-center gap-1" title={t.sync_export}>
+                <Database size={14} /> Экспорт
+              </button>
+              <label className="px-3 py-1.5 text-xs text-white/60 hover:text-white flex items-center gap-1 cursor-pointer" title={t.sync_import}>
+                <Upload size={14} /> Импорт
+                <input type="file" accept=".json" onChange={importDatabase} className="hidden" />
+              </label>
+            </div>
+
             <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-1.5 flex gap-1 shadow-lg hidden md:flex">
               {['ru', 'kz', 'en'].map(l => (
                 <button 
@@ -295,8 +354,6 @@ export default function App() {
             {!uploadedImage ? (
               <SpatialWindow className="h-[70vh] flex flex-col items-center justify-center p-6">
                 <div className="flex flex-col sm:flex-row gap-6 w-full max-w-2xl">
-                  
-                  {/* Кнопка КАМЕРЫ */}
                   <label className="flex-1 flex flex-col items-center justify-center p-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[32px] cursor-pointer transition-all group shadow-inner">
                     <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
                       <Camera size={32} className="text-white/70 group-hover:text-white transition-colors" strokeWidth={1.5} />
@@ -305,7 +362,6 @@ export default function App() {
                     <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                   </label>
 
-                  {/* Кнопка ГАЛЕРЕИ */}
                   <label className="flex-1 flex flex-col items-center justify-center p-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[32px] cursor-pointer transition-all group shadow-inner">
                     <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
                       <ImageIcon size={32} className="text-white/70 group-hover:text-white transition-colors" strokeWidth={1.5} />
@@ -313,12 +369,10 @@ export default function App() {
                     <span className="text-sm font-light tracking-widest uppercase text-white/70 group-hover:text-white transition-colors">{t.btn_gallery}</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                   </label>
-
                 </div>
               </SpatialWindow>
             ) : (
               <div className="flex flex-col lg:flex-row gap-6">
-                
                 <SpatialWindow className="flex-1 relative overflow-hidden flex items-center justify-center bg-black/20 p-4 min-h-[50vh]">
                   <div className="relative inline-block max-w-full">
                     <img 
@@ -400,6 +454,15 @@ export default function App() {
         {/* БАЗА ПРОЕКТОВ */}
         {activePage === 'history' && (
           <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+            {/* Мобильная панель экспорта/импорта */}
+            <div className="flex lg:hidden justify-end gap-2 mb-6">
+              <button onClick={exportDatabase} className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-xs text-white/70">Экспорт базы</button>
+              <label className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-xs text-white/70 cursor-pointer">
+                Импорт базы
+                <input type="file" accept=".json" onChange={importDatabase} className="hidden" />
+              </label>
+            </div>
+
             {history.length === 0 ? (
               <div className="flex flex-col items-center justify-center mt-32">
                 <Grid size={48} className="text-white/20 mb-4" strokeWidth={1} />
