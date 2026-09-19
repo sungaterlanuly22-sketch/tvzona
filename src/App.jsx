@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Camera, Save, Undo, Eraser, Trash2, 
   PenTool, User, MapPin, LogOut, Download, 
-  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Upload, Database, Lock, Mail, Key, ShieldCheck
+  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, X
 } from 'lucide-react';
 
 const translations = {
@@ -17,8 +17,7 @@ const translations = {
     form_address: "Адрес объекта", form_comment: "Технические детали", form_save: "Сохранить проект",
     hist_author: "Ответственный:", hist_empty: "Пространство проектов пусто", detail_title: "Карточка проекта",
     btn_download: "Сохранить", btn_whatsapp: "В WhatsApp", btn_back: "Назад к списку",
-    btn_camera: "Сделать фото", btn_gallery: "Из галереи",
-    sync_export: "Экспорт базы", sync_import: "Импорт базы"
+    btn_camera: "Сделать фото", btn_gallery: "Из галереи"
   },
   kz: {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
@@ -31,8 +30,7 @@ const translations = {
     form_address: "Нысан мекенжайы", form_comment: "Техникалық бөлшектер", form_save: "Жобаны сақтау",
     hist_author: "Жауапты:", hist_empty: "Жобалар кеңістігі бос", detail_title: "Жоба картасы",
     btn_download: "Сақтау", btn_whatsapp: "WhatsApp-қа", btn_back: "Тізімге қайту",
-    btn_camera: "Суретке түсіру", btn_gallery: "Галереядан",
-    sync_export: "Базаны экспорттау", sync_import: "Базаны импорттау"
+    btn_camera: "Суретке түсіру", btn_gallery: "Галереядан"
   },
   en: {
     sys_name: "TVZONE", sys_sub: "Spatial Workspace",
@@ -45,8 +43,7 @@ const translations = {
     form_address: "Object Address", form_comment: "Technical Details", form_save: "Save Project",
     hist_author: "Assigned to:", hist_empty: "Project space is empty", detail_title: "Project Card",
     btn_download: "Download", btn_whatsapp: "WhatsApp", btn_back: "Back to list",
-    btn_camera: "Take Photo", btn_gallery: "From Gallery",
-    sync_export: "Export DB", sync_import: "Import DB"
+    btn_camera: "Take Photo", btn_gallery: "From Gallery"
   }
 };
 
@@ -56,7 +53,6 @@ const SpatialWindow = ({ children, className = '' }) => (
   </div>
 );
 
-// IndexedDB утилита
 const initDB = () => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('TVZonePersistentDB', 1);
@@ -110,15 +106,14 @@ export default function App() {
     }
   });
 
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
-  const [authStep, setAuthStep] = useState('form'); // 'form' | 'verify'
+  const [authMode, setAuthMode] = useState('login');
+  const [authStep, setAuthStep] = useState('form');
   
   const [authEmail, setAuthEmail] = useState('');
   const [authPass, setAuthPass] = useState('');
   const [authName, setAuthName] = useState('');
   const [authError, setAuthError] = useState('');
   
-  // Данные для верификации кода
   const [pendingUser, setPendingUser] = useState(null);
   const [verificationInput, setVerificationInput] = useState('');
   const [demoCodeHint, setDemoCodeHint] = useState('');
@@ -128,7 +123,8 @@ export default function App() {
   const [clientAddress, setClientAddress] = useState('');
   const [comment, setComment] = useState('');
   const [history, setHistory] = useState([]);
-  const [selectedRecord, setSelectedRecord] = useState(null); 
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [isFullscreenPhoto, setIsFullscreenPhoto] = useState(false);
 
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
@@ -145,7 +141,6 @@ export default function App() {
     }
   }, [currentUser]);
 
-  // Генерация 6-значного кода
   const generateSixDigitCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
@@ -171,14 +166,12 @@ export default function App() {
         return;
       }
 
-      // Генерация 6-значного кода подтверждения
       const code = generateSixDigitCode();
       const pendingData = { email: authEmail.trim(), pass: authPass.trim(), name: authName.trim(), code };
       setPendingUser(pendingData);
-      setDemoCodeHint(code); // Подсказка для проверки (симуляция письма на почту)
+      setDemoCodeHint(code);
       setAuthStep('verify');
     } else {
-      // Login check
       const found = usersStore.find(u => u.email === authEmail.trim() && u.pass === authPass.trim());
       if (!found && !(authEmail.trim() === 'admin@tvzone.kz' && authPass.trim() === 'admin123')) {
         setAuthError('Неверная почта или пароль');
@@ -190,7 +183,6 @@ export default function App() {
     }
   };
 
-  // Проверка 6-значного кода при регистрации
   const handleVerifyCode = (e) => {
     e.preventDefault();
     setAuthError('');
@@ -324,37 +316,6 @@ export default function App() {
     };
   };
 
-  const exportDatabase = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(history, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `tvzone_backup_${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  };
-
-  const importDatabase = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const imported = JSON.parse(event.target.result);
-        if (Array.isArray(imported)) {
-          setHistory(imported);
-          for (const item of imported) {
-            await saveProjectToIDB(item);
-          }
-          alert('База успешно импортирована в IndexedDB!');
-        }
-      } catch (err) {
-        alert('Ошибка чтения файла базы данных.');
-      }
-    };
-    reader.readAsText(file);
-  };
-
   const shareToWhatsApp = async (record) => {
     const textMessage = `🛠 *Новый замер: TVZONE*\n\n📍 *Адрес:* ${record.address || 'Не указан'}\n👷 *Мастер:* ${record.author}\n🕒 *Время:* ${record.time}\n\n💬 *Детали проекта:*\n${record.comment || 'Нет комментариев'}`;
     
@@ -393,7 +354,6 @@ export default function App() {
     setActivePage('history');
   };
 
-  // ЭКРАН СТРОГОЙ АВТОРИЗАЦИИ / ВЕРИФИКАЦИИ КОДА
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden font-sans">
@@ -486,7 +446,6 @@ export default function App() {
               )}
             </>
           ) : (
-            /* ЭКРАН ВВОДА 6-ЗНАЧНОГО КОДА ПОДТВЕРЖДЕНИЯ ПОЧТЫ */
             <form onSubmit={handleVerifyCode} className="space-y-6 text-center animate-in fade-in duration-300">
               <div className="text-center mb-6">
                 <ShieldCheck className="w-12 h-12 text-[#25D366] mx-auto mb-4 opacity-90" strokeWidth={1} />
@@ -495,7 +454,6 @@ export default function App() {
                 <p className="text-xs text-white/30 mt-1 font-mono">{pendingUser?.email}</p>
               </div>
 
-              {/* Демо-подсказка кода для быстрой проверки на планшете */}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-[11px] text-white/70 font-mono">
                 📧 [Эмуляция почты]: Код подтверждения — <strong className="text-white text-sm">{demoCodeHint}</strong>
               </div>
@@ -531,7 +489,6 @@ export default function App() {
     );
   }
 
-  // ОСНОВНОЙ ИНТЕРФЕЙС
   return (
     <div className="min-h-screen bg-black text-white font-sans flex flex-col relative overflow-hidden">
       
@@ -564,16 +521,6 @@ export default function App() {
           </div>
 
           <div className="pointer-events-auto flex gap-3 sm:gap-4 items-center">
-            <div className="hidden lg:flex items-center gap-1 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-1.5 shadow-lg">
-              <button onClick={exportDatabase} className="px-3 py-1.5 text-xs text-white/60 hover:text-white flex items-center gap-1" title={t.sync_export}>
-                <Database size={14} /> Экспорт
-              </button>
-              <label className="px-3 py-1.5 text-xs text-white/60 hover:text-white flex items-center gap-1 cursor-pointer" title={t.sync_import}>
-                <Upload size={14} /> Импорт
-                <input type="file" accept=".json" onChange={importDatabase} className="hidden" />
-              </label>
-            </div>
-
             <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-1.5 flex gap-1 shadow-lg hidden md:flex">
               {['ru', 'kz', 'en'].map(l => (
                 <button 
@@ -620,6 +567,15 @@ export default function App() {
             ) : (
               <div className="flex flex-col lg:flex-row gap-6">
                 <SpatialWindow className="flex-1 relative overflow-hidden flex items-center justify-center bg-black/20 p-4 min-h-[50vh]">
+                  {/* Кнопка полного экрана на фото в верхнем углу */}
+                  <button 
+                    onClick={() => setIsFullscreenPhoto(true)}
+                    className="absolute top-6 right-6 z-30 w-11 h-11 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/80 hover:text-white hover:bg-black/80 transition-all shadow-xl"
+                    title="Открыть фото во весь экран"
+                  >
+                    <Maximize2 size={18} />
+                  </button>
+
                   <div className="relative inline-block max-w-full">
                     <img 
                       ref={imageRef}
@@ -697,17 +653,31 @@ export default function App() {
           </div>
         )}
 
+        {/* МОДАЛКА: ПРОСМОТР ФОТО ВО ВЬЕРАЙТЕР / НА ВЕСЬ ЭКРАН */}
+        {isFullscreenPhoto && uploadedImage && (
+          <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
+            <button 
+              onClick={() => setIsFullscreenPhoto(false)}
+              className="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center text-white transition-all shadow-2xl"
+            >
+              <X size={22} />
+            </button>
+            <p className="text-white/40 text-xs uppercase tracking-widest mb-4">Просмотр фото стены</p>
+            <div className="max-w-5xl max-h-[85vh] overflow-auto flex items-center justify-center">
+              <img src={uploadedImage} alt="Во весь экран" className="max-w-full max-h-[80vh] object-contain rounded-2xl border border-white/10" />
+            </div>
+            <button 
+              onClick={() => setIsFullscreenPhoto(false)}
+              className="mt-6 px-8 py-3 rounded-full bg-white text-black text-sm font-medium hover:scale-105 transition-all"
+            >
+              Закрыть и продолжить разметку
+            </button>
+          </div>
+        )}
+
         {/* БАЗА ПРОЕКТОВ */}
         {activePage === 'history' && (
           <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <div className="flex lg:hidden justify-end gap-2 mb-6">
-              <button onClick={exportDatabase} className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-xs text-white/70">Экспорт базы</button>
-              <label className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-xs text-white/70 cursor-pointer">
-                Импорт базы
-                <input type="file" accept=".json" onChange={importDatabase} className="hidden" />
-              </label>
-            </div>
-
             {history.length === 0 ? (
               <div className="flex flex-col items-center justify-center mt-32">
                 <Grid size={48} className="text-white/20 mb-4" strokeWidth={1} />
