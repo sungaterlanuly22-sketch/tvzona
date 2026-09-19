@@ -96,6 +96,39 @@ const saveProjectToIDB = async (project) => {
   }
 };
 
+// Функция нормализации ориентации изображения (устраняет поворот набок с телефонов)
+const normalizeImageOrientation = (file, callback) => {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      // Нормализуем размер под адекватный для работы
+      const maxDim = 1920;
+      let width = img.naturalWidth || img.width;
+      let height = img.naturalHeight || img.height;
+      
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      callback(canvas.toDataURL('image/jpeg', 0.9));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
 export default function App() {
   const [lang, setLang] = useState('ru');
   const t = translations[lang];
@@ -218,9 +251,10 @@ export default function App() {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => setUploadedImage(event.target.result);
-      reader.readAsDataURL(file);
+      normalizeImageOrientation(file, (dataUrl) => {
+        setUploadedImage(dataUrl);
+        setPaths([]);
+      });
     }
   };
 
@@ -297,8 +331,8 @@ export default function App() {
   }, [paths, currentPath, isFullscreenDraw]);
 
   const handleImageLoad = (e) => {
-    const naturalW = e.target.naturalWidth;
-    const naturalH = e.target.naturalHeight;
+    const naturalW = e.target.naturalWidth || e.target.width;
+    const naturalH = e.target.naturalHeight || e.target.height;
     if (canvasRef.current) {
       canvasRef.current.width = naturalW;
       canvasRef.current.height = naturalH;
@@ -306,8 +340,8 @@ export default function App() {
   };
 
   const handleFsImageLoad = (e) => {
-    const naturalW = e.target.naturalWidth;
-    const naturalH = e.target.naturalHeight;
+    const naturalW = e.target.naturalWidth || e.target.width;
+    const naturalH = e.target.naturalHeight || e.target.height;
     if (fsCanvasRef.current) {
       fsCanvasRef.current.width = naturalW;
       fsCanvasRef.current.height = naturalH;
@@ -336,7 +370,7 @@ export default function App() {
       
       const newRecord = {
         id: Date.now(),
-        drawnImage: finalCanvas.toDataURL('image/png'),
+        drawnImage: finalCanvas.toDataURL('image/jpeg', 0.85),
         address: clientAddress,
         comment: comment,
         author: currentUser?.name || 'Мастер',
@@ -357,7 +391,7 @@ export default function App() {
       const response = await fetch(record.drawnImage);
       const blob = await response.blob();
       const safeTimeName = record.time.replace(/[: ]/g, '_');
-      const file = new File([blob], `Zamer_${safeTimeName}.png`, { type: 'image/png' });
+      const file = new File([blob], `Zamer_${safeTimeName}.jpg`, { type: 'image/jpeg' });
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
@@ -367,7 +401,7 @@ export default function App() {
       } else {
         const a = document.createElement('a');
         a.href = record.drawnImage;
-        a.download = `Zamer_${safeTimeName}.png`;
+        a.download = `Zamer_${safeTimeName}.jpg`;
         a.click();
 
         const waLink = `https://wa.me/?text=${encodeURIComponent(textMessage)}`;
@@ -649,23 +683,23 @@ export default function App() {
               <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-stretch flex-1">
                 
                 <SpatialWindow className="flex-1 flex flex-col items-center justify-between p-4 sm:p-6 bg-black/25 relative overflow-hidden">
-                  {/* Плавающая красная кнопка закрытия прямо в правом верхнем углу фото-контейнера */}
-                  <button 
-                    onClick={clearImage}
-                    className="absolute top-4 right-4 z-40 px-3.5 py-1.5 rounded-full bg-red-500/85 hover:bg-red-500 text-white font-medium flex items-center gap-1.5 shadow-2xl text-xs backdrop-blur-md transition-all cursor-pointer"
-                    title={t.btn_close_photo}
-                  >
-                    <X size={14} /> Закрыть
-                  </button>
-
-                  <div className="w-full flex justify-between items-center mb-3 pr-24 shrink-0">
-                    <span className="text-[10px] sm:text-xs uppercase tracking-widest text-white/40">Разметка зоны</span>
-                    <button 
-                      onClick={() => setIsFullscreenDraw(true)}
-                      className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center gap-1.5 text-white/80 hover:text-white transition-all text-[11px] sm:text-xs tracking-wider"
-                    >
-                      <Maximize2 size={13} /> На весь экран
-                    </button>
+                  {/* Явная верхняя плашка над фото для мобильных/планшетов с гарантированной кнопкой закрытия */}
+                  <div className="w-full flex justify-between items-center mb-3 shrink-0 bg-black/40 px-3.5 py-2 rounded-xl border border-white/10">
+                    <span className="text-[10px] sm:text-xs uppercase tracking-widest text-white/50">Разметка зоны</span>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setIsFullscreenDraw(true)}
+                        className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 flex items-center gap-1 text-white/90 transition-all text-[11px]"
+                      >
+                        <Maximize2 size={12} /> На весь экран
+                      </button>
+                      <button 
+                        onClick={clearImage} 
+                        className="px-3 py-1 rounded-lg bg-red-500/80 hover:bg-red-500 text-white font-medium flex items-center gap-1 transition-all text-[11px]"
+                      >
+                        <X size={12} /> Закрыть
+                      </button>
+                    </div>
                   </div>
 
                   <div className="relative inline-flex items-center justify-center max-w-full max-h-[45vh] lg:max-h-[55vh] overflow-hidden my-auto">
@@ -808,7 +842,7 @@ export default function App() {
               <h2 className="text-xs sm:text-sm font-light tracking-widest uppercase text-white/70 hidden md:block">{t.detail_title}</h2>
               
               <div className="flex gap-2.5">
-                <a href={selectedRecord.drawnImage} download={`Замер_${selectedRecord.time.replace(/[: ]/g, '_')}.png`} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all text-xs sm:text-sm font-medium">
+                <a href={selectedRecord.drawnImage} download={`Замер_${selectedRecord.time.replace(/[: ]/g, '_')}.jpg`} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all text-xs sm:text-sm font-medium">
                   <Download size={15} /> <span className="hidden sm:inline">{t.btn_download}</span>
                 </a>
                 
