@@ -138,7 +138,6 @@ export default function App() {
   const [clientAddress, setClientAddress] = useState('');
   const [comment, setComment] = useState('');
   
-  // НОВЫЕ ПОЛЯ
   const [amount, setAmount] = useState('');
   const [advance, setAdvance] = useState('');
   const [tvZoneType, setTvZoneType] = useState('');
@@ -379,7 +378,6 @@ export default function App() {
       finalCtx.drawImage(img, 0, 0);
       finalCtx.drawImage(canvas, 0, 0);
       
-      // Добавляем логотип INTERA на фото
       finalCtx.save();
       const wmText = "INTERA";
       const wmSub = "надежный партнер";
@@ -392,16 +390,13 @@ export default function App() {
       const xPos = finalCanvas.width - boxWidth - 30;
       const yPos = finalCanvas.height - boxHeight - 30;
 
-      // Полупрозрачный фон для логотипа
       finalCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       finalCtx.fillRect(xPos, yPos, boxWidth, boxHeight);
 
-      // Основной текст INTERA
       finalCtx.fillStyle = '#FFFFFF';
       finalCtx.textAlign = 'center';
       finalCtx.fillText(wmText, xPos + (boxWidth / 2), yPos + 55);
       
-      // Подзаголовок
       finalCtx.font = '18px sans-serif';
       finalCtx.fillStyle = '#CCCCCC';
       finalCtx.fillText(wmSub, xPos + (boxWidth / 2), yPos + 85);
@@ -450,7 +445,6 @@ export default function App() {
   };
 
   const shareToWhatsApp = async (record) => {
-    // Формат без эмодзи
     const textMessage = `Новый замер: TVZONE\n\nАдрес: ${record.address || '-'}\nМастер: ${record.author}\nВремя: ${record.time}\n\nТип ТВ зоны: ${record.tvZoneType || '-'}\nСумма: ${record.amount || '-'}\nАванс: ${record.advance || '-'}\nСрок: ${record.deadline || '-'}\n\nДетали проекта:\n${record.comment || 'Нет комментариев'}`;
     
     try {
@@ -596,13 +590,11 @@ export default function App() {
       {activePage !== 'detail' && (
         <header className="fixed top-3 sm:top-5 left-2 sm:left-6 right-2 sm:right-6 z-40 flex justify-between items-center pointer-events-none gap-1 sm:gap-2 animate-in fade-in duration-500">
           
-          {/* 1. ЛОГОТИП INTERA СЛЕВА */}
           <div className="pointer-events-auto bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 flex flex-col justify-center shadow-lg shrink-0">
             <span className="text-white font-black text-sm sm:text-base tracking-[0.15em] leading-none">INTERA</span>
             <span className="text-white/50 font-light text-[7px] sm:text-[8px] tracking-widest uppercase mt-1">надежный партнер</span>
           </div>
 
-          {/* 2. НАВИГАЦИЯ ПО ЦЕНТРУ */}
           <div className="pointer-events-auto flex items-center gap-1 sm:gap-2 bg-white/5 backdrop-blur-2xl border border-white/10 p-1 rounded-full shadow-lg shrink-0">
             <button onClick={() => setActivePage('new')} className={`flex items-center gap-1.5 px-3 py-2 sm:px-5 sm:py-2 rounded-full transition-all duration-300 ${activePage === 'new' ? 'bg-white text-black shadow-md scale-105' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
               <Plus size={16} strokeWidth={activePage === 'new' ? 2 : 1.5} />
@@ -614,9 +606,7 @@ export default function App() {
             </button>
           </div>
 
-          {/* 3. ИМЯ, ЯЗЫК И ВЫХОД СПРАВА */}
           <div className="pointer-events-auto flex gap-1 sm:gap-2 items-center shrink-0">
-            {/* Имя перенесли вправо */}
             <div className="hidden lg:flex bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full px-4 py-2 items-center gap-2 shadow-lg">
               <User size={14} className="text-white/70" />
               <span className="text-xs tracking-widest font-light truncate max-w-[120px]">{currentUser.name}</span>
@@ -675,7 +665,6 @@ export default function App() {
                   {renderToolbar(false)}
                 </SpatialWindow>
 
-                {/* ПРАВАЯ ПАНЕЛЬ С НОВЫМИ ПОЛЯМИ */}
                 <SpatialWindow className="w-full lg:w-80 xl:w-96 p-5 sm:p-7 flex flex-col gap-4 shrink-0 overflow-y-auto">
                   
                   <div className="space-y-2">
@@ -827,9 +816,12 @@ export default function App() {
               </button>
               <h2 className="text-xs sm:text-sm font-light tracking-widest uppercase text-white/70 hidden md:block">{t.detail_title}</h2>
               <div className="flex flex-wrap gap-2.5">
-                <button onClick={() => handleDeleteProject(selectedRecord)} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all text-xs sm:text-sm font-medium border border-red-500/20">
-                  <Trash2 size={15} /> <span className="hidden sm:inline">{t.btn_delete}</span>
-                </button>
+                {/* ТОЛЬКО АВТОР МОЖЕТ УДАЛИТЬ СВОЙ ЗАМЕР */}
+                {currentUser?.name === selectedRecord.author && (
+                  <button onClick={() => handleDeleteProject(selectedRecord)} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all text-xs sm:text-sm font-medium border border-red-500/20">
+                    <Trash2 size={15} /> <span className="hidden sm:inline">{t.btn_delete}</span>
+                  </button>
+                )}
                 
                 <a href={selectedRecord.drawnImage} download={`Замер_${selectedRecord.time.replace(/[: ]/g, '_')}.jpg`} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all text-xs sm:text-sm font-medium">
                   <Download size={15} /> <span className="hidden sm:inline">{t.btn_download}</span>
