@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Camera, Save, Undo, Eraser, Trash2, 
   PenTool, User, MapPin, LogOut, Download, 
-  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, Check, X, Loader2
+  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, Check, X, Loader2, Wallet, Calendar, LayoutTemplate
 } from 'lucide-react';
 
 // ==========================================
@@ -137,11 +137,17 @@ export default function App() {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [clientAddress, setClientAddress] = useState('');
   const [comment, setComment] = useState('');
+  
+  // НОВЫЕ ПОЛЯ
+  const [amount, setAmount] = useState('');
+  const [advance, setAdvance] = useState('');
+  const [tvZoneType, setTvZoneType] = useState('');
+  const [deadline, setDeadline] = useState('');
+
   const [history, setHistory] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [isFullscreenDraw, setIsFullscreenDraw] = useState(false);
   
-  // Новое состояние для просмотра готового фото на весь экран
   const [viewFullscreenImage, setViewFullscreenImage] = useState(null);
 
   const canvasRef = useRef(null);
@@ -373,6 +379,34 @@ export default function App() {
       finalCtx.drawImage(img, 0, 0);
       finalCtx.drawImage(canvas, 0, 0);
       
+      // Добавляем логотип INTERA на фото
+      finalCtx.save();
+      const wmText = "INTERA";
+      const wmSub = "надежный партнер";
+      finalCtx.font = 'bold 50px sans-serif';
+      const textWidth = finalCtx.measureText(wmText).width;
+      
+      const padding = 25;
+      const boxWidth = textWidth + padding * 2;
+      const boxHeight = 110;
+      const xPos = finalCanvas.width - boxWidth - 30;
+      const yPos = finalCanvas.height - boxHeight - 30;
+
+      // Полупрозрачный фон для логотипа
+      finalCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      finalCtx.fillRect(xPos, yPos, boxWidth, boxHeight);
+
+      // Основной текст INTERA
+      finalCtx.fillStyle = '#FFFFFF';
+      finalCtx.textAlign = 'center';
+      finalCtx.fillText(wmText, xPos + (boxWidth / 2), yPos + 55);
+      
+      // Подзаголовок
+      finalCtx.font = '18px sans-serif';
+      finalCtx.fillStyle = '#CCCCCC';
+      finalCtx.fillText(wmSub, xPos + (boxWidth / 2), yPos + 85);
+      finalCtx.restore();
+      
       const now = new Date();
       const timeString = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       
@@ -382,6 +416,10 @@ export default function App() {
         drawnImage: finalCanvas.toDataURL('image/jpeg', 0.8),
         address: clientAddress,
         comment: comment,
+        amount: amount,
+        advance: advance,
+        tvZoneType: tvZoneType,
+        deadline: deadline,
         author: currentUser?.name || 'Мастер',
         time: timeString
       };
@@ -390,6 +428,7 @@ export default function App() {
         await set(ref(db, 'projects/' + newId), newRecord);
         setActivePage('history');
         setUploadedImage(null); setClientAddress(''); setComment(''); setPaths([]);
+        setAmount(''); setAdvance(''); setTvZoneType(''); setDeadline('');
       } catch (err) {
         console.error(err);
         alert('Ошибка при сохранении в облако. Проверьте настройки базы данных Firebase.');
@@ -397,7 +436,6 @@ export default function App() {
     };
   };
 
-  // Новая функция удаления
   const handleDeleteProject = async (record) => {
     if (window.confirm(t.confirm_delete)) {
       try {
@@ -412,7 +450,9 @@ export default function App() {
   };
 
   const shareToWhatsApp = async (record) => {
-    const textMessage = `🛠 *Новый замер: TVZONE*\n\n📍 *Адрес:* ${record.address || 'Не указан'}\n👷 *Мастер:* ${record.author}\n🕒 *Время:* ${record.time}\n\n💬 *Детали проекта:*\n${record.comment || 'Нет комментариев'}`;
+    // Формат без эмодзи
+    const textMessage = `Новый замер: TVZONE\n\nАдрес: ${record.address || '-'}\nМастер: ${record.author}\nВремя: ${record.time}\n\nТип ТВ зоны: ${record.tvZoneType || '-'}\nСумма: ${record.amount || '-'}\nАванс: ${record.advance || '-'}\nСрок: ${record.deadline || '-'}\n\nДетали проекта:\n${record.comment || 'Нет комментариев'}`;
+    
     try {
       const response = await fetch(record.drawnImage);
       const blob = await response.blob();
@@ -624,22 +664,58 @@ export default function App() {
                   </div>
                   {renderToolbar(false)}
                 </SpatialWindow>
-                <SpatialWindow className="w-full lg:w-80 xl:w-96 p-5 sm:p-7 flex flex-col gap-5 shrink-0">
+
+                {/* ПРАВАЯ ПАНЕЛЬ С НОВЫМИ ПОЛЯМИ */}
+                <SpatialWindow className="w-full lg:w-80 xl:w-96 p-5 sm:p-7 flex flex-col gap-4 shrink-0 overflow-y-auto">
+                  
                   <div className="space-y-2">
                     <label className="text-[10px] text-white/40 uppercase tracking-widest">{t.form_address}</label>
                     <div className="relative">
                       <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" size={15} />
-                      <input value={clientAddress} onChange={e=>setClientAddress(e.target.value)} type="text" placeholder="Локация..." className="w-full bg-white/5 border border-white/5 rounded-xl py-3 pl-10 pr-3 text-white outline-none focus:bg-white/10 transition-all text-xs sm:text-sm font-light" />
+                      <input value={clientAddress} onChange={e=>setClientAddress(e.target.value)} type="text" placeholder="Улица, дом, квартира" className="w-full bg-white/5 border border-white/5 rounded-xl py-2.5 pl-10 pr-3 text-white outline-none focus:bg-white/10 transition-all text-xs sm:text-sm font-light" />
                     </div>
                   </div>
-                  <div className="space-y-2 flex-1 flex flex-col">
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-white/40 uppercase tracking-widest">Тип ТВ зоны</label>
+                      <div className="relative">
+                        <LayoutTemplate className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={13} />
+                        <input value={tvZoneType} onChange={e=>setTvZoneType(e.target.value)} type="text" placeholder="Например: Встройка" className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-8 pr-2 text-white outline-none focus:bg-white/10 transition-all text-xs font-light" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-white/40 uppercase tracking-widest">Срок</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={13} />
+                        <input value={deadline} onChange={e=>setDeadline(e.target.value)} type="text" placeholder="Например: 5 дней" className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-8 pr-2 text-white outline-none focus:bg-white/10 transition-all text-xs font-light" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-white/40 uppercase tracking-widest">Сумма</label>
+                      <div className="relative">
+                        <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={13} />
+                        <input value={amount} onChange={e=>setAmount(e.target.value)} type="text" placeholder="Итого" className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-8 pr-2 text-white outline-none focus:bg-white/10 transition-all text-xs font-light" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-white/40 uppercase tracking-widest">Аванс</label>
+                      <div className="relative">
+                        <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={13} />
+                        <input value={advance} onChange={e=>setAdvance(e.target.value)} type="text" placeholder="Предоплата" className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-8 pr-2 text-white outline-none focus:bg-white/10 transition-all text-xs font-light" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 flex-1 flex flex-col min-h-[90px]">
                     <label className="text-[10px] text-white/40 uppercase tracking-widest">{t.form_comment}</label>
-                    <div className="relative flex-1 min-h-[90px] lg:min-h-[140px]">
+                    <div className="relative flex-1">
                        <AlignLeft className="absolute left-3.5 top-3.5 text-white/30" size={15} />
                        <textarea value={comment} onChange={e=>setComment(e.target.value)} placeholder="Детали..." className="w-full h-full bg-white/5 border border-white/5 rounded-xl py-3 pl-10 pr-3 text-white outline-none focus:bg-white/10 transition-all resize-none text-xs sm:text-sm font-light" />
                     </div>
                   </div>
-                  <button onClick={handleSave} className="w-full bg-white text-black font-medium py-3.5 sm:py-4 rounded-xl hover:scale-[1.01] transition-transform duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)] text-xs sm:text-sm shrink-0">
+
+                  <button onClick={handleSave} className="w-full bg-white text-black font-medium py-3.5 sm:py-4 rounded-xl hover:scale-[1.01] transition-transform duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)] text-xs sm:text-sm shrink-0 mt-2">
                     <Save size={16} /> {t.form_save}
                   </button>
                 </SpatialWindow>
@@ -669,6 +745,7 @@ export default function App() {
           </div>
         )}
 
+        {/* НОВЫЙ ДИЗАЙН БЕЛОЙ КАРТОЧКИ */}
         {activePage === 'history' && (
           <div className="animate-in fade-in duration-500">
             {history.length === 0 ? (
@@ -677,36 +754,55 @@ export default function App() {
                 <p className="text-xs sm:text-sm font-light tracking-widest uppercase text-white/30">{t.hist_empty}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
                 {history.map(item => (
-                  <SpatialWindow key={item.id} className="cursor-pointer group hover:bg-white/[0.08] transition-colors duration-500 overflow-hidden flex flex-col">
-                    <div onClick={() => openDetail(item)} className="flex-1 flex flex-col">
-                      <div className="aspect-video bg-black/55 relative overflow-hidden">
-                        <img src={item.drawnImage} alt="Замер" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                        <div className="absolute bottom-2.5 left-3.5 flex items-center gap-1.5 text-white/90">
-                          <Clock size={13} className="text-white/50" />
-                          <span className="text-[11px] font-mono tracking-wider">{item.time}</span>
+                  <div key={item.id} onClick={() => openDetail(item)} className="cursor-pointer group hover:bg-gray-50 transition-colors duration-500 overflow-hidden flex flex-col bg-white rounded-[28px] border border-gray-200 shadow-lg">
+                    <div className="flex-1 flex flex-col">
+                      <div className="aspect-video bg-gray-100 relative overflow-hidden">
+                        <img src={item.drawnImage} alt="Замер" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                        <div className="absolute bottom-2.5 left-3.5 flex items-center gap-1.5 text-white">
+                          <Clock size={13} className="text-white/80" />
+                          <span className="text-[11px] font-mono tracking-wider text-white/90">{item.time}</span>
                         </div>
                       </div>
-                      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-3">
-                        <div>
-                          <p className="text-[10px] text-white/40 uppercase tracking-widest mb-0.5">Мастер</p>
-                          <div className="flex items-center gap-1.5">
-                            <User size={13} className="text-white/70" />
-                            <span className="text-xs sm:text-sm font-medium tracking-wide truncate">{item.author}</span>
+                      
+                      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-3 text-black">
+                        <div className="grid grid-cols-2 gap-y-4 gap-x-3">
+                          <div>
+                            <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-0.5">Мастер</p>
+                            <div className="flex items-center gap-1.5">
+                              <User size={12} className="text-gray-500" />
+                              <span className="text-xs font-medium tracking-wide truncate text-gray-800">{item.author}</span>
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-white/40 uppercase tracking-widest mb-0.5">Объект</p>
-                          <div className="flex items-start gap-1.5">
-                            <MapPin size={13} className="text-white/70 shrink-0 mt-0.5" />
-                            <span className="text-xs sm:text-sm font-light leading-snug line-clamp-2 text-white/80">{item.address || 'Адрес не указан'}</span>
+                          <div>
+                            <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-0.5">Тип ТВ зоны</p>
+                            <span className="text-xs font-medium text-gray-800">{item.tvZoneType || '-'}</span>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-0.5">Сумма</p>
+                            <span className="text-xs font-medium text-gray-800">{item.amount || '-'}</span>
+                          </div>
+                          <div>
+                             <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-0.5">Аванс</p>
+                             <span className="text-xs font-medium text-gray-800">{item.advance || '-'}</span>
+                          </div>
+                          <div className="col-span-2">
+                             <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-0.5">Срок</p>
+                             <span className="text-xs font-medium text-gray-800">{item.deadline || '-'}</span>
+                          </div>
+                          <div className="col-span-2 border-t border-gray-100 pt-3">
+                            <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-0.5">Объект</p>
+                            <div className="flex items-start gap-1.5">
+                              <MapPin size={13} className="text-gray-500 shrink-0 mt-0.5" />
+                              <span className="text-xs font-medium leading-snug line-clamp-2 text-gray-800">{item.address || 'Адрес не указан'}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </SpatialWindow>
+                  </div>
                 ))}
               </div>
             )}
@@ -721,12 +817,9 @@ export default function App() {
               </button>
               <h2 className="text-xs sm:text-sm font-light tracking-widest uppercase text-white/70 hidden md:block">{t.detail_title}</h2>
               <div className="flex flex-wrap gap-2.5">
-                {/* Кнопка удаления (показывается только автору проекта) */}
-                {currentUser?.name === selectedRecord.author && (
-                  <button onClick={() => handleDeleteProject(selectedRecord)} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all text-xs sm:text-sm font-medium border border-red-500/20">
-                    <Trash2 size={15} /> <span className="hidden sm:inline">{t.btn_delete}</span>
-                  </button>
-                )}
+                <button onClick={() => handleDeleteProject(selectedRecord)} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all text-xs sm:text-sm font-medium border border-red-500/20">
+                  <Trash2 size={15} /> <span className="hidden sm:inline">{t.btn_delete}</span>
+                </button>
                 
                 <a href={selectedRecord.drawnImage} download={`Замер_${selectedRecord.time.replace(/[: ]/g, '_')}.jpg`} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all text-xs sm:text-sm font-medium">
                   <Download size={15} /> <span className="hidden sm:inline">{t.btn_download}</span>
@@ -738,7 +831,6 @@ export default function App() {
             </div>
 
             <SpatialWindow className="p-5 sm:p-8 flex flex-col xl:flex-row gap-6 lg:gap-10">
-              {/* Блок картинки с кликом для полноэкранного просмотра */}
               <div 
                 className="w-full xl:w-2/3 bg-black/40 rounded-[20px] overflow-hidden flex items-center justify-center p-2 border border-white/5 shadow-inner relative group cursor-pointer"
                 onClick={() => setViewFullscreenImage(selectedRecord.drawnImage)}
@@ -762,6 +854,26 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 bg-white/[0.03] p-4 sm:p-5 rounded-2xl border border-white/5">
+                    <div>
+                      <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">Тип ТВ зоны</p>
+                      <p className="font-medium text-xs sm:text-sm text-white">{selectedRecord.tvZoneType || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">Срок</p>
+                      <p className="font-medium text-xs sm:text-sm text-white">{selectedRecord.deadline || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">Сумма</p>
+                      <p className="font-medium text-xs sm:text-sm text-white">{selectedRecord.amount || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">Аванс</p>
+                      <p className="font-medium text-xs sm:text-sm text-white">{selectedRecord.advance || '-'}</p>
+                    </div>
+                  </div>
+
                   <div className="space-y-4 bg-white/[0.03] p-4 sm:p-5 rounded-2xl border border-white/5">
                     <div>
                       <p className="text-[9px] text-white/40 uppercase tracking-widest mb-2">Время фиксации</p>
@@ -794,7 +906,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Окно для просмотра готового фото на весь экран */}
         {viewFullscreenImage && (
           <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
             <button 
