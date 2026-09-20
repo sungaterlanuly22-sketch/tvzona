@@ -595,11 +595,14 @@ export default function App() {
 
       {activePage !== 'detail' && (
         <header className="fixed top-3 sm:top-5 left-2 sm:left-6 right-2 sm:right-6 z-40 flex justify-between items-center pointer-events-none gap-1 sm:gap-2 animate-in fade-in duration-500">
-          <div className="pointer-events-auto bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-2.5 sm:px-5 sm:py-2 flex items-center gap-2.5 shadow-lg shrink-0">
-            <Eye size={16} className="text-white/70" />
-            <span className="hidden sm:block text-xs sm:text-sm tracking-widest font-light truncate max-w-[100px] sm:max-w-none">{currentUser.name}</span>
+          
+          {/* 1. ЛОГОТИП INTERA СЛЕВА */}
+          <div className="pointer-events-auto bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 flex flex-col justify-center shadow-lg shrink-0">
+            <span className="text-white font-black text-sm sm:text-base tracking-[0.15em] leading-none">INTERA</span>
+            <span className="text-white/50 font-light text-[7px] sm:text-[8px] tracking-widest uppercase mt-1">надежный партнер</span>
           </div>
 
+          {/* 2. НАВИГАЦИЯ ПО ЦЕНТРУ */}
           <div className="pointer-events-auto flex items-center gap-1 sm:gap-2 bg-white/5 backdrop-blur-2xl border border-white/10 p-1 rounded-full shadow-lg shrink-0">
             <button onClick={() => setActivePage('new')} className={`flex items-center gap-1.5 px-3 py-2 sm:px-5 sm:py-2 rounded-full transition-all duration-300 ${activePage === 'new' ? 'bg-white text-black shadow-md scale-105' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
               <Plus size={16} strokeWidth={activePage === 'new' ? 2 : 1.5} />
@@ -611,7 +614,14 @@ export default function App() {
             </button>
           </div>
 
+          {/* 3. ИМЯ, ЯЗЫК И ВЫХОД СПРАВА */}
           <div className="pointer-events-auto flex gap-1 sm:gap-2 items-center shrink-0">
+            {/* Имя перенесли вправо */}
+            <div className="hidden lg:flex bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full px-4 py-2 items-center gap-2 shadow-lg">
+              <User size={14} className="text-white/70" />
+              <span className="text-xs tracking-widest font-light truncate max-w-[120px]">{currentUser.name}</span>
+            </div>
+            
             <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full p-1 flex gap-1 shadow-lg">
               {['ru', 'kz', 'en'].map(l => (
                 <button key={l} onClick={() => setLang(l)} className={`px-2 py-1.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300 ${lang === l ? 'bg-white/20 text-white font-medium' : 'text-white/40 hover:text-white/80'}`}>
