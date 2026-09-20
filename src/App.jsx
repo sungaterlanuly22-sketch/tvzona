@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Camera, Save, Undo, Eraser, Trash2, 
   PenTool, User, MapPin, LogOut, Download, 
-  Grid, Plus, ChevronLeft, Clock, AlignLeft, Eye, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, Check, X, Loader2, Wallet, Calendar, LayoutTemplate
+  Grid, Plus, ChevronLeft, Clock, AlignLeft, MessageCircle, Image as ImageIcon, Lock, Mail, Key, ShieldCheck, Maximize2, Check, X, Loader2, Wallet, Calendar, LayoutTemplate
 } from 'lucide-react';
 
 // ==========================================
@@ -31,6 +31,19 @@ const db = getDatabase(app);
 const EMAILJS_SERVICE_ID = 'service_2a1dntp';
 const EMAILJS_TEMPLATE_ID = 'template_m0v01p4';
 const EMAILJS_PUBLIC_KEY = 'YTs6RNUvAjy1zicxk';
+
+// Векторный 3D-логотип INTERA, нарисованный кодом
+const InteraLogo = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20,45 L40,35 L40,55 L20,65 Z" fill="#6BAED6"/>
+    <path d="M20,67 L40,57 L40,77 L20,87 Z" fill="#2B8CBE"/>
+    <path d="M42,34 L62,24 L62,44 L42,54 Z" fill="#FEC44F"/>
+    <path d="M42,56 L62,46 L62,66 L42,76 Z" fill="#FE9929"/>
+    <path d="M64,23 L84,13 L84,33 L64,43 Z" fill="#E0E0E0"/>
+    <path d="M64,45 L84,35 L84,55 L64,65 Z" fill="#9E9E9E"/>
+    <path d="M40,33 L60,23 L80,33 L60,43 Z" fill="#F5F5F5"/>
+  </svg>
+);
 
 const translations = {
   ru: {
@@ -364,42 +377,61 @@ export default function App() {
 
   const handleSave = async () => {
     if (!uploadedImage) return;
-    const canvas = canvasRef.current;
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = canvas.width || 1280;
-    finalCanvas.height = canvas.height || 720;
-    const finalCtx = finalCanvas.getContext('2d');
     
-    const img = new Image();
-    img.src = uploadedImage;
-    img.onload = async () => {
-      finalCanvas.width = img.naturalWidth || finalCanvas.width;
-      finalCanvas.height = img.naturalHeight || finalCanvas.height;
-      finalCtx.drawImage(img, 0, 0);
+    try {
+      const canvas = canvasRef.current;
+      const finalCanvas = document.createElement('canvas');
+      const finalCtx = finalCanvas.getContext('2d');
+      
+      const loadImg = (src) => new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+
+      // Загружаем основное фото
+      const mainImg = await loadImg(uploadedImage);
+      finalCanvas.width = mainImg.naturalWidth || finalCanvas.width;
+      finalCanvas.height = mainImg.naturalHeight || finalCanvas.height;
+      
+      // Рисуем фото и чертеж
+      finalCtx.drawImage(mainImg, 0, 0);
       finalCtx.drawImage(canvas, 0, 0);
       
+      // ==========================================
+      // ВОДЯНОЙ ЗНАК INTERA С ЛОГОТИПОМ
+      // ==========================================
       finalCtx.save();
       const wmText = "INTERA";
-      const wmSub = "надежный партнер";
       finalCtx.font = 'bold 50px sans-serif';
       const textWidth = finalCtx.measureText(wmText).width;
       
+      const logoWidth = 60;
+      const gap = 20;
       const padding = 25;
-      const boxWidth = textWidth + padding * 2;
+      const boxWidth = logoWidth + gap + textWidth + padding * 2;
       const boxHeight = 110;
       const xPos = finalCanvas.width - boxWidth - 30;
       const yPos = finalCanvas.height - boxHeight - 30;
 
+      // Полупрозрачный фон
       finalCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       finalCtx.fillRect(xPos, yPos, boxWidth, boxHeight);
 
-      finalCtx.fillStyle = '#FFFFFF';
-      finalCtx.textAlign = 'center';
-      finalCtx.fillText(wmText, xPos + (boxWidth / 2), yPos + 55);
+      // Загружаем SVG логотип из кода
+      const svgLogoStr = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M20,45 L40,35 L40,55 L20,65 Z" fill="#6BAED6"/><path d="M20,67 L40,57 L40,77 L20,87 Z" fill="#2B8CBE"/><path d="M42,34 L62,24 L62,44 L42,54 Z" fill="#FEC44F"/><path d="M42,56 L62,46 L62,66 L42,76 Z" fill="#FE9929"/><path d="M64,23 L84,13 L84,33 L64,43 Z" fill="#E0E0E0"/><path d="M64,45 L84,35 L84,55 L64,65 Z" fill="#9E9E9E"/><path d="M40,33 L60,23 L80,33 L60,43 Z" fill="#F5F5F5"/></svg>';
+      const svgLogoUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgLogoStr)}`;
+      const logoImg = await loadImg(svgLogoUrl);
       
-      finalCtx.font = '18px sans-serif';
-      finalCtx.fillStyle = '#CCCCCC';
-      finalCtx.fillText(wmSub, xPos + (boxWidth / 2), yPos + 85);
+      // Рисуем логотип-кубик
+      finalCtx.drawImage(logoImg, xPos + padding, yPos + 25, 60, 60);
+
+      // Пишем текст INTERA (без надежный партнер)
+      finalCtx.fillStyle = '#FFFFFF';
+      finalCtx.textAlign = 'left';
+      finalCtx.textBaseline = 'middle';
+      finalCtx.fillText(wmText, xPos + padding + logoWidth + gap, yPos + (boxHeight / 2) + 4);
       finalCtx.restore();
       
       const now = new Date();
@@ -419,16 +451,14 @@ export default function App() {
         time: timeString
       };
 
-      try {
-        await set(ref(db, 'projects/' + newId), newRecord);
-        setActivePage('history');
-        setUploadedImage(null); setClientAddress(''); setComment(''); setPaths([]);
-        setAmount(''); setAdvance(''); setTvZoneType(''); setDeadline('');
-      } catch (err) {
-        console.error(err);
-        alert('Ошибка при сохранении в облако. Проверьте настройки базы данных Firebase.');
-      }
-    };
+      await set(ref(db, 'projects/' + newId), newRecord);
+      setActivePage('history');
+      setUploadedImage(null); setClientAddress(''); setComment(''); setPaths([]);
+      setAmount(''); setAdvance(''); setTvZoneType(''); setDeadline('');
+    } catch (err) {
+      console.error(err);
+      alert('Ошибка при сохранении в облако. Проверьте настройки базы данных Firebase.');
+    }
   };
 
   const handleDeleteProject = async (record) => {
@@ -590,9 +620,10 @@ export default function App() {
       {activePage !== 'detail' && (
         <header className="fixed top-3 sm:top-5 left-2 sm:left-6 right-2 sm:right-6 z-40 flex justify-between items-center pointer-events-none gap-1 sm:gap-2 animate-in fade-in duration-500">
           
-          <div className="pointer-events-auto bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 flex flex-col justify-center shadow-lg shrink-0">
-            <span className="text-white font-black text-sm sm:text-base tracking-[0.15em] leading-none">INTERA</span>
-            <span className="text-white/50 font-light text-[7px] sm:text-[8px] tracking-widest uppercase mt-1">надежный партнер</span>
+          {/* НОВЫЙ ЛОГОТИП INTERA */}
+          <div className="pointer-events-auto bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl px-3 py-2 sm:px-5 sm:py-2.5 flex items-center gap-3 shadow-lg shrink-0">
+            <InteraLogo size={28} />
+            <span className="text-white font-black text-base sm:text-xl tracking-[0.15em] leading-none mt-0.5">INTERA</span>
           </div>
 
           <div className="pointer-events-auto flex items-center gap-1 sm:gap-2 bg-white/5 backdrop-blur-2xl border border-white/10 p-1 rounded-full shadow-lg shrink-0">
@@ -607,6 +638,7 @@ export default function App() {
           </div>
 
           <div className="pointer-events-auto flex gap-1 sm:gap-2 items-center shrink-0">
+            {/* ИМЯ ПЕРЕНЕСЕНО СЮДА (ВПРАВО) */}
             <div className="hidden lg:flex bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full px-4 py-2 items-center gap-2 shadow-lg">
               <User size={14} className="text-white/70" />
               <span className="text-xs tracking-widest font-light truncate max-w-[120px]">{currentUser.name}</span>
@@ -816,7 +848,6 @@ export default function App() {
               </button>
               <h2 className="text-xs sm:text-sm font-light tracking-widest uppercase text-white/70 hidden md:block">{t.detail_title}</h2>
               <div className="flex flex-wrap gap-2.5">
-                {/* ТОЛЬКО АВТОР МОЖЕТ УДАЛИТЬ СВОЙ ЗАМЕР */}
                 {currentUser?.name === selectedRecord.author && (
                   <button onClick={() => handleDeleteProject(selectedRecord)} className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all text-xs sm:text-sm font-medium border border-red-500/20">
                     <Trash2 size={15} /> <span className="hidden sm:inline">{t.btn_delete}</span>
